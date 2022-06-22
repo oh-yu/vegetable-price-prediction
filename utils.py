@@ -99,7 +99,7 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
 
         # Training
         optimizer.zero_grad()
-        out, _ = model(train_x, train, test, future)
+        out, pred_y = model(train_x, train, test, future)
         loss = criterion(out, train_y)
         loss.backward()
         optimizer.step()
