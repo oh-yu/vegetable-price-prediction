@@ -13,6 +13,29 @@ def get_target_values(train, target_str):
     return target_values
 
 
+# Corresponds To 1_variable_rnn_submit.ipynb
+def preprocess_data(train, T=10):
+    feature_size = train.shape[1]
+    
+    ss = preprocessing.StandardScaler()
+    ss.fit(train[:, 0].reshape(-1, 1))
+    train[:, 0] = ss.transform(train[:, 0].reshape(-1, 1)).reshape(-1)
+
+    train_N = train.shape[0] // T
+    train = train[:train_N * T]
+    train = train.reshape(train_N, T, feature_size)
+    train_x = train[:, :-1, :]
+    train_y = train[:, 1:, :1]
+    
+    train_x = torch.tensor(train_x, dtype=torch.float32)
+    train_y = torch.tensor(train_y, dtype=torch.float32)
+
+    return train_x, train_y, train, ss
+
+
+"""
+Corresponds To 1_variable_rnn.ipynb
+
 def preprocess_data(target_values, train_size=4000, T=10):
     feature_size = target_values.shape[1]
     
@@ -35,6 +58,7 @@ def preprocess_data(target_values, train_size=4000, T=10):
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32)
     return train_x, train_y, test_y, train, test, ss
+"""
 
 
 class rnn(nn.Module):
@@ -87,8 +111,9 @@ class rnn(nn.Module):
             # start_x shape: (1, 1, feature_size)
         return out, preds
 
-    
-def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
+
+# Corresponds To 1_variable_rnn_submit.ipynb
+def pipeline_rnn(train_x, train_y, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
     model = rnn(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
@@ -100,6 +125,45 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
         # Training
         optimizer.zero_grad()
         out, pred_y = model(train_x, train, test, future)
+        loss = criterion(out, train_y)
+        loss.backward()
+        optimizer.step()
+
+        if epoch % 10 == 0:
+            print(f"training loss = {loss}")
+
+    return pred_y
+
+
+def plot_prediction(pred_y, test_y, ss):
+    pred_y = pred_y.detach().numpy()
+
+    test_y = test_y.reshape(-1, 1)
+    test_y = ss.inverse_transform(test_y)
+    pred_y = pred_y.reshape(-1, 1)
+    pred_y = ss.inverse_transform(pred_y)
+
+    plt.title("pred vs test")
+    plt.plot(test_y, label="test")
+    plt.plot(pred_y, label="pred")
+    plt.legend()
+
+
+"""
+Corresponds To 1_variable_rnn.ipynb
+
+def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
+    # Instantiate Model, Optimizer, Criterion
+    model = rnn(input_size = train_x.shape[2])
+    optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
+    criterion = nn.MSELoss()
+    
+    # Training & Test Loop
+    for epoch in range(num_epochs):
+
+        # Training
+        optimizer.zero_grad()
+        out, _ = model(train_x, train, test, future)
         loss = criterion(out, train_y)
         loss.backward()
         optimizer.step()
@@ -130,3 +194,4 @@ def plot_prediction(pred_y, test_y, ss):
     plt.plot(test_y, label="test")
     plt.plot(pred_y, label="pred")
     plt.legend()
+"""
