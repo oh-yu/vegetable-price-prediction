@@ -50,7 +50,7 @@ class rnn(nn.Module):
 
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
 
-    def forward(self, x, train, test, future=375):
+    def forward(self, x, train, test, future):
         out, (h_t1, c_t1) = self.rnn1(x)
         out, (h_t2, c_t2) = self.rnn2(out)
         out = self.dropout1(F.relu(self.fc1(out)))
@@ -88,7 +88,7 @@ class rnn(nn.Module):
         return out, preds
 
     
-def pipeline_rnn(train_x, train_y, train, test, test_y, num_epochs=100):
+def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
     model = rnn(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
@@ -99,7 +99,7 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, num_epochs=100):
 
         # Training
         optimizer.zero_grad()
-        out, pred_y = model(train_x, train, test)
+        out, pred_y = model(train_x, train, test, future)
         loss = criterion(out, train_y)
         loss.backward()
         optimizer.step()
