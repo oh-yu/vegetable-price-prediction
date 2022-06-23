@@ -6,6 +6,25 @@ from torch import optim
 from sklearn import preprocessing
 
 
+def get_temp_features(train, temps):
+    """ definition of train, temps
+    train = pd.read_csv("./data/train.csv")
+    train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
+    temps = pd.read_csv("./data/weather.csv")
+    temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
+    """
+    df = pd.DataFrame()
+    for row,vals in train.iterrows():
+        date = vals["date"]
+        area = vals["area"]
+        temp = temps[(temps.area == area) & (temps.date == date)]
+        temp = temp.drop(columns=["date", "area"])
+        if temp.empty:
+            temp = pd.DataFrame(temps[temps.date == date].mean()).T
+            # TODO: create more reasonable logic
+        df = pd.concat([df, temp], axis=0)
+    return df
+
 def get_target_values(train, target_str):
     target_df = train[train.kind == target_str].sort_values("date")
     target_df = target_df.drop(columns=["kind", "date", "amount"])
