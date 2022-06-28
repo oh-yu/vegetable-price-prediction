@@ -1,10 +1,72 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch import optim
 from sklearn import preprocessing
+
+
+def get_terminal_score():
+    target_vegetables = [
+        'だいこん', 'にんじん', 'キャベツ', 'レタス',
+        'はくさい', 'こまつな', 'ほうれんそう', 'ねぎ',
+        'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
+        'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
+    ]
+    scores = []
+    
+    # Load Train
+    train = pd.read_csv("./data/train.csv")
+    train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
+
+    train["year"] = train.date.dt.year
+    years = pd.get_dummies(train["year"])
+    train = train.drop(columns="year")
+    train = pd.concat([train, years], axis=1)
+
+    train["month"] = train.date.dt.month
+    months = pd.get_dummies(train["month"])
+    train = train.drop(columns="month")
+    train = pd.concat([train, months], axis=1)
+
+    train["weekday"] = train.date.dt.weekday
+    weekdays = pd.get_dummies(train["weekday"])
+    train = train.drop(columns="weekday")
+    train = pd.concat([train, weekdays], axis=1)
+
+    areas = pd.get_dummies(train["area"])
+    train = train.drop(columns="area")
+    train_df = pd.concat([train, areas], axis=1)
+    
+    # Get Score For Each Vegetable
+    for target in target_vegetables:
+        # Set Train Size 
+        if target == "レタス":
+            train_size = 1000
+        elif target == "なましいたけ":
+            train_size = 3000
+        elif target == "セルリー":
+            train_size = 2000
+        elif target == "そらまめ":
+            train_size = 800
+        elif target == "ミニトマト":
+            train_size = 1500
+        else:
+            train_size = 4000
+        
+        # Preprocess Data
+        target_values = get_target_values(train_df, target)
+        train_x, train_y, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=10)
+        # Training, Test
+        _, loss = pipeline_rnn(train_x, train_y, train, test, test_y,
+                               future=target_values.shape[0]-train_size, num_epochs=30)
+        scores.append(loss)
+        print(f"{target}: {loss}")
+    
+    # Log
+    print(f"MSE: {np.mean(scores)}({np.std(scores)})")
 
 
 def get_temp_features(train, temps):
@@ -25,6 +87,7 @@ def get_temp_features(train, temps):
             # TODO: create more reasonable logic
         df = pd.concat([df, temp], axis=0)
     return df
+
 
 def get_target_values(train, target_str):
     target_df = train[train.kind == target_str].sort_values("date")
@@ -84,7 +147,7 @@ def preprocess_data(target_values, train_size=4000, T=10):
     return train_x, train_y, test_y, train, test, ss
 
 
-class rnn(nn.Module):
+class RNN(nn.Module):
     def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5):
         super().__init__()
         self.rnn1 = nn.LSTM(input_size, hidden_size, batch_first=True)
@@ -176,7 +239,7 @@ def plot_prediction(pred_y, test_y, ss):
 # Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
-    model = rnn(input_size = train_x.shape[2])
+    model = RNN(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     
