@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -27,12 +28,18 @@ def get_temp_features(train, temps):
 
 def get_target_values(train, target_str):
     target_df = train[train.kind == target_str].sort_values("date")
-    target_df = target_df.drop(columns=["kind", "date", "amount"])
+    target_df = target_df.drop(columns=["kind", "date"])
+    
+    # change the order for amount, mode_price
+    tmp = target_df["amount"]
+    target_df["amount"] = target_df["mode_price"]
+    target_df["mode_price"] = tmp
+    
     target_values = target_df.values
     return target_values
 
 
-# Corresponds To 1_variable_rnn_submit.ipynb
+""" Corresponds To 1_variable_rnn_submit.ipynb
 def preprocess_data(train, T=10):
     feature_size = train.shape[1]
     
@@ -50,11 +57,9 @@ def preprocess_data(train, T=10):
     train_y = torch.tensor(train_y, dtype=torch.float32)
 
     return train_x, train_y, train, ss
-
-
 """
-Corresponds To 1_variable_rnn.ipynb
 
+# Corresponds To 1_variable_rnn.ipynb
 def preprocess_data(target_values, train_size=4000, T=10):
     feature_size = target_values.shape[1]
     
@@ -62,9 +67,9 @@ def preprocess_data(target_values, train_size=4000, T=10):
     test = target_values[train_size:, :]
 
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, 0].reshape(-1, 1))
-    train[:, 0] = ss.transform(train[:, 0].reshape(-1, 1)).reshape(-1)
-    test[:, 0] = ss.transform(test[:, 0].reshape(-1, 1)).reshape(-1)
+    ss.fit(train[:, :2])
+    train[:, :2] = ss.transform(train[:, :2])
+    test[:, :2] = ss.transform(test[:, :2])
 
     train_N = train.shape[0] // T
     train = train[:train_N * T]
@@ -77,7 +82,6 @@ def preprocess_data(target_values, train_size=4000, T=10):
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32)
     return train_x, train_y, test_y, train, test, ss
-"""
 
 
 class rnn(nn.Module):
@@ -131,7 +135,7 @@ class rnn(nn.Module):
         return out, preds
 
 
-# Corresponds To 1_variable_rnn_submit.ipynb
+""" Corresponds To 1_variable_rnn_submit.ipynb
 def pipeline_rnn(train_x, train_y, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
     model = rnn(input_size = train_x.shape[2])
@@ -166,11 +170,10 @@ def plot_prediction(pred_y, test_y, ss):
     plt.plot(test_y, label="test")
     plt.plot(pred_y, label="pred")
     plt.legend()
-
-
 """
-Corresponds To 1_variable_rnn.ipynb
 
+
+# Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
     model = rnn(input_size = train_x.shape[2])
@@ -198,19 +201,19 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
 
             if epoch % 10 == 0:
                 print(f"test loss = {loss}")
-    return pred_y
+    return pred_y, loss
 
 
-def plot_prediction(pred_y, test_y, ss):
+def plot_prediction(pred_y, test, ss):
     pred_y = pred_y.detach().numpy()
 
-    test_y = test_y.reshape(-1, 1)
-    test_y = ss.inverse_transform(test_y)
+    test[:, :2] = ss.inverse_transform(test[:, :2])
+    
     pred_y = pred_y.reshape(-1, 1)
-    pred_y = ss.inverse_transform(pred_y)
+    pred_y = np.concatenate([pred_y, test[:, 1:]], axis=1)
+    pred_y[:, :2] = ss.inverse_transform(pred_y[:, :2])
 
     plt.title("pred vs test")
-    plt.plot(test_y, label="test")
-    plt.plot(pred_y, label="pred")
+    plt.plot(test[:, 0], label="test")
+    plt.plot(pred_y[:, 0], label="pred")
     plt.legend()
-"""
