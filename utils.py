@@ -238,11 +238,16 @@ def plot_prediction(pred_y, test_y, ss):
 
 # Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
-    # Instantiate Model, Optimizer, Criterion
+    # Variable To Store Prediction
+    preds = []
+    losses = []
+    
+    # Instantiate Model, Optimizer, Criterion, EarlyStopping
     model = RNN(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
-    
+    early_stopping = EarlyStopping(patience=25)
+
     # Training & Test Loop
     for epoch in range(num_epochs):
 
@@ -261,10 +266,41 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
             model.eval()
             pred_y = pred_y.reshape(-1)
             loss = criterion(pred_y, test_y)
-
+            
+            preds.append(pred_y)
+            losses.append(loss.item())
             if epoch % 10 == 0:
                 print(f"test loss = {loss}")
+                
+        # Early Stopping
+        early_stopping(loss)
+        if early_stopping.early_stop:
+            pred_y = preds[np.argmin(losses)]
+            break
     return pred_y, loss
+
+
+class EarlyStopping:
+
+    def __init__(self, patience=7, delta=0):
+        self.patience = patience
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = np.Inf
+        self.delta = delta
+
+    def __call__(self, val_loss):
+        score = -val_loss
+        if self.best_score is None:
+            self.best_score = score
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.counter = 0
 
 
 def plot_prediction(pred_y, test, ss):
