@@ -61,7 +61,7 @@ def get_terminal_score():
         train_x, train_y, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=10)
         # Training, Test
         _, loss = pipeline_rnn(train_x, train_y, train, test, test_y,
-                               future=target_values.shape[0]-train_size, num_epochs=30)
+                               future=target_values.shape[0]-train_size, num_epochs=200)
         scores.append(loss)
         print(f"{target}: {loss}")
     
@@ -273,8 +273,10 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
                 print(f"test loss = {loss}")
                 
         # Early Stopping
-        early_stopping(loss)
+        early_stopping(loss.item())
         if early_stopping.early_stop:
+            print(f"early stop at: {np.min(losses)}")
+            loss = np.min(losses)
             pred_y = preds[np.argmin(losses)]
             break
     return pred_y, loss
