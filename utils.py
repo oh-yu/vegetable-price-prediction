@@ -123,9 +123,9 @@ def preprocess_data(target_values, train_size=4000, T=10):
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, 0].reshape(-1, 1))
-    train[:, 0] = ss.transform(train[:, 0].reshape(-1, 1)).reshape(-1)
-    test[:, 0] = ss.transform(test[:, 0].reshape(-1, 1)).reshape(-1)
+    ss.fit(train[:, :7])
+    train[:, :7] = ss.transform(train[:, :7])
+    test[:, :7] = ss.transform(test[:, :7])
     train_N = train.shape[0] // T
     train = train[:train_N * T]
     train = train.reshape(train_N, T, feature_size)
@@ -297,13 +297,11 @@ class EarlyStopping:
             self.counter = 0
 
 
-def plot_prediction(pred_y, test_y, ss):
-    pred_y = pred_y.detach().numpy()
-    test_y = test_y.reshape(-1, 1)
-    test_y = ss.inverse_transform(test_y)
-    pred_y = pred_y.reshape(-1, 1)
-    pred_y = ss.inverse_transform(pred_y)
+def plot_prediction(pred, test, ss):
+    test[:, :7] = ss.inverse_transform(test[:, :7])
+    pred[:, :7] = ss.inverse_transform(pred[:, :7])
+
     plt.title("pred vs test")
-    plt.plot(test_y, label="test")
-    plt.plot(pred_y, label="pred")
+    plt.plot(test[:, 0], label="test")
+    plt.plot(pred[:, 0], label="pred")
     plt.legend()
