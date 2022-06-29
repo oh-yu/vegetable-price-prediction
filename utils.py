@@ -101,8 +101,8 @@ def preprocess_data(train, T=10):
     feature_size = train.shape[1]
     
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, 0].reshape(-1, 1))
-    train[:, 0] = ss.transform(train[:, 0].reshape(-1, 1)).reshape(-1)
+    ss.fit(train[:, :7])
+    train[:, :7] = ss.transform(train[:, :7])
 
     train_N = train.shape[0] // T
     train = train[:train_N * T]
@@ -153,6 +153,7 @@ class RNN(nn.Module):
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
 
     def forward(self, x, train, test, future):
+        self.train()
         out, (h_t1, c_t1) = self.rnn1(x)
         out, (h_t2, c_t2) = self.rnn2(out)
         out = self.dropout1(F.relu(self.fc1(out)))
@@ -174,6 +175,7 @@ class RNN(nn.Module):
         h_t2, c_t2 = h_t2[:, -1, :].unsqueeze(1), c_t2[:, -1, :].unsqueeze(1)
         
         # future prediction
+        self.eval()
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
             pred, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
@@ -193,7 +195,7 @@ class RNN(nn.Module):
 """ Corresponds To 1_variable_rnn_submit.ipynb
 def pipeline_rnn(train_x, train_y, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
-    model = rnn(input_size = train_x.shape[2])
+    model = RNN(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     
