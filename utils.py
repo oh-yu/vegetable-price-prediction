@@ -91,13 +91,7 @@ def get_temp_features(train, temps):
 
 def get_target_values(train, target_str):
     target_df = train[train.kind == target_str].sort_values("date")
-    target_df = target_df.drop(columns=["kind", "date"])
-    
-    # change the order for amount, mode_price
-    tmp = target_df["amount"]
-    target_df["amount"] = target_df["mode_price"]
-    target_df["mode_price"] = tmp
-    
+    target_df = target_df.drop(columns=["kind", "date", "amount"])
     target_values = target_df.values
     return target_values
 
@@ -128,12 +122,10 @@ def preprocess_data(target_values, train_size=4000, T=10):
     
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
-
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :2])
-    train[:, :2] = ss.transform(train[:, :2])
-    test[:, :2] = ss.transform(test[:, :2])
-
+    ss.fit(train[:, 0].reshape(-1, 1))
+    train[:, 0] = ss.transform(train[:, 0].reshape(-1, 1)).reshape(-1)
+    test[:, 0] = ss.transform(test[:, 0].reshape(-1, 1)).reshape(-1)
     train_N = train.shape[0] // T
     train = train[:train_N * T]
     train = train.reshape(train_N, T, feature_size)
@@ -246,7 +238,7 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
     model = RNN(input_size = train_x.shape[2])
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
-    early_stopping = EarlyStopping(patience=25)
+    early_stopping = EarlyStopping(patience=30)
 
     # Training & Test Loop
     for epoch in range(num_epochs):
@@ -305,16 +297,13 @@ class EarlyStopping:
             self.counter = 0
 
 
-def plot_prediction(pred_y, test, ss):
+def plot_prediction(pred_y, test_y, ss):
     pred_y = pred_y.detach().numpy()
-
-    test[:, :2] = ss.inverse_transform(test[:, :2])
-    
+    test_y = test_y.reshape(-1, 1)
+    test_y = ss.inverse_transform(test_y)
     pred_y = pred_y.reshape(-1, 1)
-    pred_y = np.concatenate([pred_y, test[:, 1:]], axis=1)
-    pred_y[:, :2] = ss.inverse_transform(pred_y[:, :2])
-
+    pred_y = ss.inverse_transform(pred_y)
     plt.title("pred vs test")
-    plt.plot(test[:, 0], label="test")
-    plt.plot(pred_y[:, 0], label="pred")
+    plt.plot(test_y, label="test")
+    plt.plot(pred_y, label="pred")
     plt.legend()
