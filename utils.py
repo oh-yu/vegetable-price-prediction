@@ -96,13 +96,14 @@ def get_target_values(train, target_str):
     return target_values
 
 
-""" Corresponds To 1_variable_rnn_submit.ipynb
-def preprocess_data(train, T=10):
+# Corresponds To 1_variable_rnn_submit.ipynb
+def preprocess_data(train, test, T=10):
     feature_size = train.shape[1]
     
     ss = preprocessing.StandardScaler()
     ss.fit(train[:, :7])
     train[:, :7] = ss.transform(train[:, :7])
+    test[:, :7] = ss.transform(test[:, :7])
 
     train_N = train.shape[0] // T
     train = train[:train_N * T]
@@ -113,10 +114,10 @@ def preprocess_data(train, T=10):
     train_x = torch.tensor(train_x, dtype=torch.float32)
     train_y = torch.tensor(train_y, dtype=torch.float32)
 
-    return train_x, train_y, train, ss
-"""
+    return train_x, train_y, train, test, ss
 
-# Corresponds To 1_variable_rnn.ipynb
+
+""" Corresponds To 1_variable_rnn.ipynb
 def preprocess_data(target_values, train_size=4000, T=10):
     feature_size = target_values.shape[1]
     
@@ -137,7 +138,7 @@ def preprocess_data(target_values, train_size=4000, T=10):
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32)
     return train_x, train_y, test_y, train, test, ss
-
+"""
 
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5):
@@ -192,7 +193,7 @@ class RNN(nn.Module):
         return out, preds
 
 
-""" Corresponds To 1_variable_rnn_submit.ipynb
+# Corresponds To 1_variable_rnn_submit.ipynb
 def pipeline_rnn(train_x, train_y, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size = train_x.shape[2])
@@ -227,10 +228,10 @@ def plot_prediction(pred_y, test_y, ss):
     plt.plot(test_y, label="test")
     plt.plot(pred_y, label="pred")
     plt.legend()
-"""
 
 
-# Corresponds To 1_variable_rnn.ipynb
+
+""" Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
     # Variable To Store Prediction
     preds = []
@@ -307,3 +308,4 @@ def plot_prediction(pred, test, ss):
     plt.plot(test[:, 0], label="test")
     plt.plot(pred[:, 0], label="pred")
     plt.legend()
+"""
