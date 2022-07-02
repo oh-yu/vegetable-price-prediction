@@ -61,12 +61,12 @@ def get_terminal_score():
         
         # Preprocess Data
         target_values = get_target_values(train_df, target)
-        train_x, train_y, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=10)
+        train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=10)
         # Training, Test
-        _, loss = pipeline_rnn(train_x, train_y, train, test, test_y,
+        print(f"{target}: ")
+        _, loss = pipeline_rnn(train_loader, train, test, test_y,
                                future=target_values.shape[0]-train_size, num_epochs=200)
         scores.append(loss)
-        print(f"{target}: {loss}")
     
     # Log
     print(f"MSE: {np.mean(scores)}({np.std(scores)})")
@@ -104,9 +104,9 @@ def preprocess_data(train, test, T=10):
     feature_size = train.shape[1]
     
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :7])
-    train[:, :7] = ss.transform(train[:, :7])
-    test[:, :7] = ss.transform(test[:, :7])
+    ss.fit(train[:, :1])
+    train[:, :1] = ss.transform(train[:, :1])
+    test[:, :1] = ss.transform(test[:, :1])
 
     train_N = train.shape[0] // T
     train = train[:train_N * T]
@@ -114,10 +114,12 @@ def preprocess_data(train, test, T=10):
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
     
-    train_x = torch.tensor(train_x, dtype=torch.float32)
-    train_y = torch.tensor(train_y, dtype=torch.float32)
+    train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
+    train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
 
-    return train_x, train_y, train, test, ss
+    train_ds = TensorDataset(train_x, train_y)
+    train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
+    return train_loader, train, test, ss
 """
 
 
@@ -137,14 +139,10 @@ def preprocess_data(target_values, train_size=4000, T=10):
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
 
-    train_x = torch.tensor(train_x, dtype=torch.float32)
-    train_y = torch.tensor(train_y, dtype=torch.float32)
-    train_x = train_x.to(DEVICE)
-    train_y = train_y.to(DEVICE)
-
+    train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
+    train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
     test_y = test[:, 0]
-    test_y = torch.tensor(test_y, dtype=torch.float32)
-    test_y = test_y.to(DEVICE)
+    test_y = torch.tensor(test_y, dtype=torch.float32).to(DEVICE)
 
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
@@ -220,40 +218,32 @@ class RNN(nn.Module):
 
 
 """ Corresponds To 1_variable_rnn_submit.ipynb
-def pipeline_rnn(train_x, train_y, train, test, future=375, num_epochs=100):
+def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train_x.shape[2])
+    model = RNN(input_size = train_x.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     
     # Training & Test Loop
     for epoch in range(num_epochs):
-
-        # Training
-        optimizer.zero_grad()
-        out, pred_y = model(train_x, train, test, future)
-        loss = criterion(out, train_y)
-        loss.backward()
-        optimizer.step()
-
-        if epoch % 10 == 0:
-            print(f"training loss = {loss}")
-
+        model.train()
+        
+        for idx, (batch_x, batch_y) in enumerate(train_loader):
+            # Forward
+            out = model(batch_x)
+            loss = criterion(out, train_y)
+            
+            # Backward
+            optimizer.zero_grad()
+            loss.backward()
+            
+            # Update Params
+            optimizer.step()
+    
+    # Prediction
+    model.eval()
+    pred_y = model.predict(train, test, future)
     return pred_y
-
-
-def plot_prediction(pred_y, test_y, ss):
-    pred_y = pred_y.detach().numpy()
-
-    test_y = test_y.reshape(-1, 1)
-    test_y = ss.inverse_transform(test_y)
-    pred_y = pred_y.reshape(-1, 1)
-    pred_y = ss.inverse_transform(pred_y)
-
-    plt.title("pred vs test")
-    plt.plot(test_y, label="test")
-    plt.plot(pred_y, label="pred")
-    plt.legend()
 """
 
 # Corresponds To 1_variable_rnn.ipynb
