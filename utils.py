@@ -99,7 +99,7 @@ def get_target_values(train, target_str):
     return target_values
 
 
-""" Corresponds To 1_variable_rnn_submit.ipynb
+# Corresponds To 1_variable_rnn_submit.ipynb
 def preprocess_data(train, test, T=10):
     feature_size = train.shape[1]
     
@@ -120,10 +120,9 @@ def preprocess_data(train, test, T=10):
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
     return train_loader, train, test, ss
-"""
 
 
-# Corresponds To 1_variable_rnn.ipynb
+""" Corresponds To 1_variable_rnn.ipynb
 def preprocess_data(target_values, train_size=4000, T=10):
     feature_size = target_values.shape[1]
     
@@ -147,6 +146,7 @@ def preprocess_data(target_values, train_size=4000, T=10):
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
     return train_loader, test_y, train, test, ss
+"""
 
 
 class RNN(nn.Module):
@@ -217,10 +217,10 @@ class RNN(nn.Module):
         return preds
 
 
-""" Corresponds To 1_variable_rnn_submit.ipynb
+# Corresponds To 1_variable_rnn_submit.ipynb
 def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train_x.shape[2]).to(DEVICE)
+    model = RNN(input_size = train.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     
@@ -231,7 +231,7 @@ def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
         for idx, (batch_x, batch_y) in enumerate(train_loader):
             # Forward
             out = model(batch_x)
-            loss = criterion(out, train_y)
+            loss = criterion(out, batch_y)
             
             # Backward
             optimizer.zero_grad()
@@ -244,9 +244,9 @@ def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
     model.eval()
     pred_y = model.predict(train, test, future)
     return pred_y
-"""
 
-# Corresponds To 1_variable_rnn.ipynb
+
+""" Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100):
     # Variable To Store Prediction
     preds = []
@@ -332,3 +332,4 @@ def plot_prediction(pred, test, ss):
     plt.plot(test[:, 0], label="test")
     plt.plot(pred[:, 0], label="pred")
     plt.legend()
+"""
