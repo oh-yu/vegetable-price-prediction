@@ -5,6 +5,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch import optim
+from torch.utils.data import TensorDataset, DataLoader
 from sklearn import preprocessing
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -137,13 +138,17 @@ def preprocess_data(target_values, train_size=4000, T=10):
     train_y = train[:, 1:, :1]
 
     train_x = torch.tensor(train_x, dtype=torch.float32)
-    train_x = train_x.to(DEVICE)
     train_y = torch.tensor(train_y, dtype=torch.float32)
+    train_x = train_x.to(DEVICE)
     train_y = train_y.to(DEVICE)
+
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32)
     test_y = test_y.to(DEVICE)
-    return train_x, train_y, test_y, train, test, ss
+
+    train_ds = TensorDataset(train_x, train_y)
+    train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
+    return train_loader, test_y, train, test, ss
 
 
 class RNN(nn.Module):
@@ -159,7 +164,7 @@ class RNN(nn.Module):
 
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
 
-    def forward(self, x, train, test, future):
+    def forward(self, x):
         self.train()
         out, (h_t1, c_t1) = self.rnn1(x)
         out, (h_t2, c_t2) = self.rnn2(out)
@@ -167,13 +172,27 @@ class RNN(nn.Module):
         out = self.dropout2(F.relu(self.fc2(out)))
         out = self.fc3(out)
         
+        self.out = out
+        self.h_t1 = h_t1
+        self.c_t1 = c_t1
+        self.h_t2 = h_t2
+        self.c_t2 = c_t2
+        return out
+
+    def predict(self, train, test, future):
+        # assign hidden vector, memory cell, output from network
+        out = self.out
+        h_t1 = self.h_t1
+        c_t1 = self.c_t1
+        h_t2 = self.h_t2
+        c_t2 = self.c_t2
+
         # prepare start_x
         # start_x shape: (1, 1, feature_size)
         # out shape: (N, T, 1)
         preds = torch.zeros(1, future, 1).to(DEVICE)
         start_x0 = out[-1, -1, :].reshape(1, -1)
-        start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long)
-        start_x_other = start_x_other.to(DEVICE)
+        start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
         start_x = torch.cat((start_x0, start_x_other), axis=1)
         start_x = start_x.unsqueeze(1)
         
@@ -193,12 +212,11 @@ class RNN(nn.Module):
             preds[:, t, :] = pred
 
             start_x0 = pred
-            start_x_other = torch.tensor(test[t, 1:].reshape(1, -1), dtype=torch.long)
-            start_x_other = start_x_other.to(DEVICE)
+            start_x_other = torch.tensor(test[t, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
             start_x = torch.cat((start_x0, start_x_other), axis=1)
             start_x = start_x.unsqueeze(0)
             # start_x shape: (1, 1, feature_size)
-        return out, preds
+        return preds
 
 
 """ Corresponds To 1_variable_rnn_submit.ipynb
@@ -239,47 +257,56 @@ def plot_prediction(pred_y, test_y, ss):
 """
 
 # Corresponds To 1_variable_rnn.ipynb
-def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=100):
+def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100):
     # Variable To Store Prediction
     preds = []
-    losses = []
+    train_losses = []
+    test_losses = []
     
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size = train_x.shape[2]).to(DEVICE)
+    model = RNN(input_size = train.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     early_stopping = EarlyStopping(patience=30)
 
     # Training & Test Loop
     for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+        idx = None
 
-        # Training
-        optimizer.zero_grad()
-        out, pred_y = model(train_x, train, test, future)
-        loss = criterion(out, train_y)
-        loss.backward()
-        optimizer.step()
-
-        if epoch % 10 == 0:
-            print(f"training loss = {loss}")
-
+        for idx, (batch_x, batch_y) in enumerate(train_loader):
+            # Forward
+            out = model(batch_x)
+            loss = criterion(out, batch_y)
+            
+            # Backward
+            optimizer.zero_grad()
+            loss.backward()
+            
+            # Update Params
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
+            optimizer.step()
+            
+            # Add Training Loss
+            running_loss += loss.item()
+        train_losses.append(running_loss / idx)
+        
         # Test
         with torch.no_grad():
             model.eval()
+            pred_y = model.predict(train, test, future)
             pred_y = pred_y.reshape(-1)
             loss = criterion(pred_y, test_y)
-            
             preds.append(pred_y)
-            losses.append(loss.item())
-            if epoch % 10 == 0:
-                print(f"test loss = {loss}")
-                
+            test_losses.append(loss.item())
+
         # Early Stopping
         early_stopping(loss.item())
         if early_stopping.early_stop:
-            print(f"early stop at: {np.min(losses)}")
-            loss = np.min(losses)
-            pred_y = preds[np.argmin(losses)]
+            print(f"early stop at: {np.min(test_losses)}")
+            loss = np.min(test_losses)
+            pred_y = preds[np.argmin(test_losses)]
             break
     return pred_y, loss
 
