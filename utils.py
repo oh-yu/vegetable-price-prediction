@@ -7,14 +7,16 @@ import torch.nn.functional as F
 from torch import optim
 from sklearn import preprocessing
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+VEGETABLES = [
+    'だいこん', 'にんじん', 'キャベツ', 'レタス',
+    'はくさい', 'こまつな', 'ほうれんそう', 'ねぎ',
+    'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
+    'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
+]
+
 
 def get_terminal_score():
-    target_vegetables = [
-        'だいこん', 'にんじん', 'キャベツ', 'レタス',
-        'はくさい', 'こまつな', 'ほうれんそう', 'ねぎ',
-        'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
-        'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
-    ]
     scores = []
     
     # Load Train
@@ -41,7 +43,7 @@ def get_terminal_score():
     train_df = pd.concat([train, areas], axis=1)
     
     # Get Score For Each Vegetable
-    for target in target_vegetables:
+    for target in VEGETABLES:
         # Set Train Size 
         if target == "レタス":
             train_size = 1000
@@ -135,9 +137,12 @@ def preprocess_data(target_values, train_size=4000, T=10):
     train_y = train[:, 1:, :1]
 
     train_x = torch.tensor(train_x, dtype=torch.float32)
+    train_x = train_x.to(DEVICE)
     train_y = torch.tensor(train_y, dtype=torch.float32)
+    train_y = train_y.to(DEVICE)
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32)
+    test_y = test_y.to(DEVICE)
     return train_x, train_y, test_y, train, test, ss
 
 
@@ -165,9 +170,10 @@ class RNN(nn.Module):
         # prepare start_x
         # start_x shape: (1, 1, feature_size)
         # out shape: (N, T, 1)
-        preds = torch.zeros(1, future, 1)
+        preds = torch.zeros(1, future, 1).to(DEVICE)
         start_x0 = out[-1, -1, :].reshape(1, -1)
         start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long)
+        start_x_other = start_x_other.to(DEVICE)
         start_x = torch.cat((start_x0, start_x_other), axis=1)
         start_x = start_x.unsqueeze(1)
         
@@ -188,6 +194,7 @@ class RNN(nn.Module):
 
             start_x0 = pred
             start_x_other = torch.tensor(test[t, 1:].reshape(1, -1), dtype=torch.long)
+            start_x_other = start_x_other.to(DEVICE)
             start_x = torch.cat((start_x0, start_x_other), axis=1)
             start_x = start_x.unsqueeze(0)
             # start_x shape: (1, 1, feature_size)
@@ -238,7 +245,7 @@ def pipeline_rnn(train_x, train_y, train, test, test_y, future=375, num_epochs=1
     losses = []
     
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size = train_x.shape[2])
+    model = RNN(input_size = train_x.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
     criterion = nn.MSELoss()
     early_stopping = EarlyStopping(patience=30)
