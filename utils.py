@@ -17,7 +17,7 @@ VEGETABLES = [
 ]
 
 
-def get_terminal_score():
+def get_terminal_score(sequence_size=10, num_epochs=200):
     scores = []
     
     # Load Train
@@ -61,11 +61,11 @@ def get_terminal_score():
         
         # Preprocess Data
         target_values = get_target_values(train_df, target)
-        train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=10)
+        train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=sequence_size)
         # Training, Test
-        print(f"{target}: ")
+        print(f"{target}: ")        
         _, loss = pipeline_rnn(train_loader, train, test, test_y,
-                               future=target_values.shape[0]-train_size, num_epochs=200)
+                               future=test.shape[0], num_epochs=num_epochs)
         scores.append(loss)
     
     # Log
@@ -100,7 +100,7 @@ def get_target_values(train, target_str):
 
 
 # Corresponds To 1_variable_rnn_submit.ipynb
-def preprocess_data(train, test, T=10):
+def preprocess_data(train, test, T=10, batch_size=16):
     feature_size = train.shape[1]
     
     ss = preprocessing.StandardScaler()
@@ -118,12 +118,12 @@ def preprocess_data(train, test, T=10):
     train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
 
     train_ds = TensorDataset(train_x, train_y)
-    train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
     return train_loader, train, test, ss
 
 
 """ Corresponds To 1_variable_rnn.ipynb
-def preprocess_data(target_values, train_size=4000, T=10):
+def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     feature_size = target_values.shape[1]
     
     train = target_values[:train_size, :]
@@ -144,10 +144,9 @@ def preprocess_data(target_values, train_size=4000, T=10):
     test_y = torch.tensor(test_y, dtype=torch.float32).to(DEVICE)
 
     train_ds = TensorDataset(train_x, train_y)
-    train_loader = DataLoader(train_ds, batch_size=16, shuffle=False)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
     return train_loader, test_y, train, test, ss
 """
-
 
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5):
@@ -218,10 +217,10 @@ class RNN(nn.Module):
 
 
 # Corresponds To 1_variable_rnn_submit.ipynb
-def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
+def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100, lr=0.005, weight_decay=1e-3):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size = train.shape[2]).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.MSELoss()
     
     # Training & Test Loop
@@ -247,17 +246,18 @@ def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100):
 
 
 """ Corresponds To 1_variable_rnn.ipynb
-def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100):
+def pipeline_rnn(train_loader, train, test, test_y, future=375,
+                 num_epochs=100, lr=0.005, weight_decay=1e-3, patience=30):
     # Variable To Store Prediction
     preds = []
     train_losses = []
     test_losses = []
     
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size = train.shape[2]).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-3)
+    model = RNN(input_size=train.shape[2]).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.MSELoss()
-    early_stopping = EarlyStopping(patience=30)
+    early_stopping = EarlyStopping(patience=patience)
 
     # Training & Test Loop
     for epoch in range(num_epochs):
