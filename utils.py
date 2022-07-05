@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 import torch
 from torch import nn
-import torch.nn.functional as F
 from torch import optim
+import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
-from sklearn import preprocessing
+
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 VEGETABLES = [
@@ -44,26 +45,26 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
     train_df = pd.concat([train, areas], axis=1)
     
     # Get Score For Each Vegetable
-    for target in VEGETABLES:
+    for vegetable in VEGETABLES:
         # Set Train Size 
-        if target == "レタス":
+        if vegetable == "レタス":
             train_size = 1000
-        elif target == "なましいたけ":
+        elif vegetable == "なましいたけ":
             train_size = 3000
-        elif target == "セルリー":
+        elif vegetable == "セルリー":
             train_size = 2000
-        elif target == "そらまめ":
+        elif vegetable == "そらまめ":
             train_size = 800
-        elif target == "ミニトマト":
+        elif vegetable == "ミニトマト":
             train_size = 1500
         else:
             train_size = 4000
         
         # Preprocess Data
-        target_values = get_target_values(train_df, target)
+        target_values = get_target_values(train_df, vegetable)
         train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=sequence_size)
         # Training, Test
-        print(f"{target}: ")        
+        print(f"{vegetable}: ")        
         _, loss = pipeline_rnn(train_loader, train, test, test_y,
                                future=test.shape[0], num_epochs=num_epochs)
         scores.append(loss)
@@ -73,12 +74,29 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
 
 
 def get_temp_features(train, temps):
-    """ definition of train, temps
-    train = pd.read_csv("./data/train.csv")
-    train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
-    temps = pd.read_csv("./data/weather.csv")
-    temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
+
     """
+    Get features extracted from the temperature-related data in the correspoding date.
+    Currently missiing values are interpolated by the mean of several areas in a given date.
+
+    Parameters
+    ----------
+    train : pandas.DataFrame
+        Two-dimensional array.
+        Represents explanatory variables except for the temperature features and target variable, all for training.
+        axis0 is the number of samples, axis1 is the features.
+
+        train = pd.read_csv("./data/train.csv")
+        train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
+
+    temps : pandas.DataFrame
+        Two-dimensional array.
+        Represents the temperature-related data, axis0 is the number of samples and axis1 is the features.
+
+        temps = pd.read_csv("./data/weather.csv")
+        temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
+    """
+
     df = pd.DataFrame()
     for row,vals in train.iterrows():
         date = vals["date"]
@@ -92,15 +110,14 @@ def get_temp_features(train, temps):
     return df
 
 
-def get_target_values(train, target_str):
-    target_df = train[train.kind == target_str].sort_values("date")
+def get_target_values(train, target_vegetable):
+    target_df = train[train.kind == target_vegetable].sort_values("date")
     target_df = target_df.drop(columns=["kind", "date", "amount"])
     target_values = target_df.values
     return target_values
 
 
-# Corresponds To 1_variable_rnn_submit.ipynb
-def preprocess_data(train, test, T=10, batch_size=16):
+def preprocess_data_submit(train, test, T=10, batch_size=16):
     feature_size = train.shape[1]
     
     ss = preprocessing.StandardScaler()
@@ -109,7 +126,7 @@ def preprocess_data(train, test, T=10, batch_size=16):
     test[:, :1] = ss.transform(test[:, :1])
 
     train_N = train.shape[0] // T
-    train = train[:train_N * T]
+    train = train[-train_N * T:]
     train = train.reshape(train_N, T, feature_size)
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
@@ -122,7 +139,6 @@ def preprocess_data(train, test, T=10, batch_size=16):
     return train_loader, train, test, ss
 
 
-""" Corresponds To 1_variable_rnn.ipynb
 def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     feature_size = target_values.shape[1]
     
@@ -146,7 +162,7 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
     return train_loader, test_y, train, test, ss
-"""
+
 
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5):
@@ -187,7 +203,6 @@ class RNN(nn.Module):
         # prepare start_x
         # start_x shape: (1, 1, feature_size)
         # out shape: (N, T, 1)
-        preds = torch.zeros(1, future, 1).to(DEVICE)
         start_x0 = out[-1, -1, :].reshape(1, -1)
         start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
         start_x = torch.cat((start_x0, start_x_other), axis=1)
@@ -199,6 +214,7 @@ class RNN(nn.Module):
         h_t2, c_t2 = h_t2[:, -1, :].unsqueeze(1), c_t2[:, -1, :].unsqueeze(1)
         
         # future prediction
+        preds = torch.zeros(1, future, 1).to(DEVICE)
         self.eval()
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
@@ -216,8 +232,7 @@ class RNN(nn.Module):
         return preds
 
 
-# Corresponds To 1_variable_rnn_submit.ipynb
-def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100, lr=0.005, weight_decay=1e-3):
+def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005, weight_decay=1e-3):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size = train.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -237,15 +252,16 @@ def pipeline_rnn(train_loader, train, test, future=375, num_epochs=100, lr=0.005
             loss.backward()
             
             # Update Params
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
     
     # Prediction
-    model.eval()
-    pred_y = model.predict(train, test, future)
+    with torch.no_grad():
+        model.eval()
+        pred_y = model.predict(train, test, future)
     return pred_y
 
 
-""" Corresponds To 1_variable_rnn.ipynb
 def pipeline_rnn(train_loader, train, test, test_y, future=375,
                  num_epochs=100, lr=0.005, weight_decay=1e-3, patience=30):
     # Variable To Store Prediction
@@ -308,7 +324,6 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.Inf
         self.delta = delta
 
     def __call__(self, val_loss):
@@ -332,4 +347,3 @@ def plot_prediction(pred, test, ss):
     plt.plot(test[:, 0], label="test")
     plt.plot(pred[:, 0], label="pred")
     plt.legend()
-"""
