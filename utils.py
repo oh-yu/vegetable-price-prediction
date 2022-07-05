@@ -20,7 +20,7 @@ VEGETABLES = [
 
 def get_terminal_score(sequence_size=10, num_epochs=200):
     scores = []
-    
+
     # Load Train
     train = pd.read_csv("./data/train.csv")
     train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
@@ -43,10 +43,10 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
     areas = pd.get_dummies(train["area"])
     train = train.drop(columns="area")
     train_df = pd.concat([train, areas], axis=1)
-    
+
     # Get Score For Each Vegetable
     for vegetable in VEGETABLES:
-        # Set Train Size 
+        # Set Train Size
         if vegetable == "レタス":
             train_size = 1000
         elif vegetable == "なましいたけ":
@@ -59,16 +59,18 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
             train_size = 1500
         else:
             train_size = 4000
-        
+
         # Preprocess Data
         target_values = get_target_values(train_df, vegetable)
-        train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=train_size, T=sequence_size)
+        train_loader, test_y, train, test, _ = preprocess_data(
+            target_values,train_size=train_size, T=sequence_size)
+
         # Training, Test
-        print(f"{vegetable}: ")        
+        print(f"{vegetable}: ")
         _, loss = pipeline_rnn(train_loader, train, test, test_y,
                                future=test.shape[0], num_epochs=num_epochs)
         scores.append(loss)
-    
+
     # Log
     print(f"MSE: {np.mean(scores)}({np.std(scores)})")
 
@@ -83,7 +85,7 @@ def get_temp_features(train, temps):
     ----------
     train : pandas.DataFrame
         Two-dimensional array.
-        Represents explanatory variables except for the temperature features and target variable, all for training.
+        Represents explanatory variables except for the temperature features and target for train.
         axis0 is the number of samples, axis1 is the features.
 
         train = pd.read_csv("./data/train.csv")
@@ -91,14 +93,15 @@ def get_temp_features(train, temps):
 
     temps : pandas.DataFrame
         Two-dimensional array.
-        Represents the temperature-related data, axis0 is the number of samples and axis1 is the features.
+        Represents the temperature-related data.
+        axis0 is the number of samples and axis1 is the features.
 
         temps = pd.read_csv("./data/weather.csv")
         temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
     """
 
     df = pd.DataFrame()
-    for row,vals in train.iterrows():
+    for _, vals in train.iterrows():
         date = vals["date"]
         area = vals["area"]
         temp = temps[(temps.area == area) & (temps.date == date)]
@@ -119,7 +122,7 @@ def get_target_values(train, target_vegetable):
 
 def preprocess_data_submit(train, test, T=10, batch_size=16):
     feature_size = train.shape[1]
-    
+
     ss = preprocessing.StandardScaler()
     ss.fit(train[:, :1])
     train[:, :1] = ss.transform(train[:, :1])
@@ -130,7 +133,7 @@ def preprocess_data_submit(train, test, T=10, batch_size=16):
     train = train.reshape(train_N, T, feature_size)
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
-    
+
     train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
     train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
 
@@ -141,7 +144,7 @@ def preprocess_data_submit(train, test, T=10, batch_size=16):
 
 def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     feature_size = target_values.shape[1]
-    
+
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
     ss = preprocessing.StandardScaler()
@@ -169,7 +172,7 @@ class RNN(nn.Module):
         super().__init__()
         self.rnn1 = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.rnn2 = nn.LSTM(hidden_size, int(hidden_size/2), batch_first=True)
-        
+
         self.dropout1 = nn.Dropout(dropout_ratio)
         self.fc1 = nn.Linear(int(hidden_size/2), int(hidden_size/4))
         self.dropout2 = nn.Dropout(dropout_ratio)
@@ -184,7 +187,7 @@ class RNN(nn.Module):
         out = self.dropout1(F.relu(self.fc1(out)))
         out = self.dropout2(F.relu(self.fc2(out)))
         out = self.fc3(out)
-        
+
         self.out = out
         self.h_t1 = h_t1
         self.c_t1 = c_t1
@@ -207,12 +210,12 @@ class RNN(nn.Module):
         start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
         start_x = torch.cat((start_x0, start_x_other), axis=1)
         start_x = start_x.unsqueeze(1)
-        
+
         # prepare h_t, c,t
         # h_t, c_t shape: (num_layers, N, H)
         h_t1, c_t1 = h_t1[:, -1, :].unsqueeze(1), c_t1[:, -1, :].unsqueeze(1)
         h_t2, c_t2 = h_t2[:, -1, :].unsqueeze(1), c_t2[:, -1, :].unsqueeze(1)
-        
+
         # future prediction
         preds = torch.zeros(1, future, 1).to(DEVICE)
         self.eval()
@@ -232,29 +235,30 @@ class RNN(nn.Module):
         return preds
 
 
-def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005, weight_decay=1e-3):
+def pipeline_rnn_submit(train_loader, train, test, future=375,
+                        num_epochs=100, lr=0.005, weight_decay=1e-3):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size = train.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.MSELoss()
-    
+
     # Training & Test Loop
-    for epoch in range(num_epochs):
+    for _ in range(num_epochs):
         model.train()
-        
-        for idx, (batch_x, batch_y) in enumerate(train_loader):
+
+        for (batch_x, batch_y) in train_loader:
             # Forward
             out = model(batch_x)
             loss = criterion(out, batch_y)
-            
+
             # Backward
             optimizer.zero_grad()
             loss.backward()
-            
+
             # Update Params
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
-    
+
     # Prediction
     with torch.no_grad():
         model.eval()
@@ -268,7 +272,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
     preds = []
     train_losses = []
     test_losses = []
-    
+
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
     model = RNN(input_size=train.shape[2]).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -276,7 +280,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
     early_stopping = EarlyStopping(patience=patience)
 
     # Training & Test Loop
-    for epoch in range(num_epochs):
+    for _ in range(num_epochs):
         model.train()
         running_loss = 0.0
         idx = None
@@ -285,19 +289,19 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
             # Forward
             out = model(batch_x)
             loss = criterion(out, batch_y)
-            
+
             # Backward
             optimizer.zero_grad()
             loss.backward()
-            
+
             # Update Params
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
-            
+
             # Add Training Loss
             running_loss += loss.item()
         train_losses.append(running_loss / idx)
-        
+
         # Test
         with torch.no_grad():
             model.eval()
