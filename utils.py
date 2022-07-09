@@ -22,27 +22,26 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
     scores = []
 
     # Load Train
-    train = pd.read_csv("./data/train.csv")
-    train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
+    train_test = pd.read_csv("./data/mapped_train_test.csv")
+    train_test["date"] = pd.to_datetime(train_test["date"], format="%Y-%m-%d")
+    weather = pd.read_csv("./data/sorted_mapped_adjusted_weather.csv")
+    train_test = pd.concat([train_test, weather], axis=1)
 
-    train["year"] = train.date.dt.year
-    years = pd.get_dummies(train["year"])
-    train = train.drop(columns="year")
-    train = pd.concat([train, years], axis=1)
+    train_test["year"] = train_test.date.dt.year
+    years = pd.get_dummies(train_test["year"])
+    train_test = train_test.drop(columns="year")
+    train_test = pd.concat([train_test, years], axis=1)
 
-    train["month"] = train.date.dt.month
-    months = pd.get_dummies(train["month"])
-    train = train.drop(columns="month")
-    train = pd.concat([train, months], axis=1)
+    train_test["month"] = train_test.date.dt.month
+    months = pd.get_dummies(train_test["month"])
+    train_test = train_test.drop(columns="month")
+    train_test = pd.concat([train_test, months], axis=1)
 
-    train["weekday"] = train.date.dt.weekday
-    weekdays = pd.get_dummies(train["weekday"])
-    train = train.drop(columns="weekday")
-    train = pd.concat([train, weekdays], axis=1)
-
-    areas = pd.get_dummies(train["area"])
-    train = train.drop(columns="area")
-    train_df = pd.concat([train, areas], axis=1)
+    areas = pd.get_dummies(train_test["area"])
+    train_test = train_test.drop(columns="area")
+    train_test = pd.concat([train_test, areas], axis=1)
+    
+    train_df = train_test[:pd.read_csv("./data/train.csv").shape[0]]
 
     # Get Score For Each Vegetable
     for vegetable in VEGETABLES:
