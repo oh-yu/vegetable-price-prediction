@@ -1,6 +1,3 @@
-# ./data/mapped_adjusted_weather.csv
-./data/mapped_adjusted_weather.csv
-
 # .pylintrc
 *.pylintrc
 
