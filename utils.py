@@ -75,10 +75,10 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
     print(f"MSE: {np.mean(scores)}({np.std(scores)})")
 
 
-def get_temp_features(train, temps):
+def get_sorted_weather(train, temps):
 
     """
-    Get features extracted from the temperature-related data in the correspoding date.
+    Sort features extracted from the temperature-related data in the correspoding date and vegetable kind.
     Currently missiing values are interpolated by the mean of several areas in a given date.
 
     Parameters
@@ -96,25 +96,31 @@ def get_temp_features(train, temps):
         Represents the temperature-related data.
         axis0 is the number of samples and axis1 is the features.
 
-        temps = pd.read_csv("./data/weather.csv")
+        temps = pd.read_csv("./data/mapped_adjusted_weather.csv")
         temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
     """
 
     df = pd.DataFrame()
+    c = 0
     for _, vals in train.iterrows():
         date = vals["date"]
         area = vals["area"]
-        temp = temps[(temps.area == area) & (temps.date == date)]
-        temp = temp.drop(columns=["date", "area"])
+        temp = temps[(temps.areas == area) & (temps.dates == date)]
+        temp = temp.drop(columns=["dates", "areas"])
         if temp.empty:
+            c += 1
             temp = pd.DataFrame(temps[temps.date == date].mean()).T
-            # TODO: create more reasonable logic
+            # TODO: to be deleted
         df = pd.concat([df, temp], axis=0)
+    print(f"missing: {c}")
     return df
 
 
 def get_target_values(train, target_vegetable):
     target_df = train[train.kind == target_vegetable].sort_values("date")
+    interpolated_cols = ["mean_temp", "max_temp", "min_temp", "sum_rain", "mean_humid"]
+    for col in interpolated_cols:
+        target_df[col] = target_df[col].interpolate(limit=None, limit_direction='both').values
     target_df = target_df.drop(columns=["kind", "date", "amount"])
     target_values = target_df.values
     return target_values
@@ -124,9 +130,9 @@ def preprocess_data_submit(train, test, T=10, batch_size=16):
     feature_size = train.shape[1]
 
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :1])
-    train[:, :1] = ss.transform(train[:, :1])
-    test[:, :1] = ss.transform(test[:, :1])
+    ss.fit(train[:, :6])
+    train[:, :6] = ss.transform(train[:, :6])
+    test[:, :6] = ss.transform(test[:, :6])
 
     train_N = train.shape[0] // T
     train = train[-train_N * T:]
@@ -148,9 +154,9 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :1])
-    train[:, :1] = ss.transform(train[:, :1])
-    test[:, :1] = ss.transform(test[:, :1])
+    ss.fit(train[:, :6])
+    train[:, :6] = ss.transform(train[:, :6])
+    test[:, :6] = ss.transform(test[:, :6])
     train_N = train.shape[0] // T
     train = train[:train_N * T]
     train = train.reshape(train_N, T, feature_size)
@@ -344,8 +350,8 @@ class EarlyStopping:
 
 
 def plot_prediction(pred, test, ss):
-    test[:, :1] = ss.inverse_transform(test[:, :1])
-    pred[:, :1] = ss.inverse_transform(pred[:, :1])
+    test[:, :6] = ss.inverse_transform(test[:, :6])
+    pred[:, :6] = ss.inverse_transform(pred[:, :6])
 
     plt.title("pred vs test")
     plt.plot(test[:, 0], label="test")
