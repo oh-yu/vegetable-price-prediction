@@ -305,7 +305,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
 
             # Add Training Loss
             running_loss += loss.item()
-        train_losses.append(running_loss / idx)
+        train_losses.append(running_loss / (idx+1))
 
         # Test
         with torch.no_grad():
