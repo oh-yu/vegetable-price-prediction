@@ -1,12 +1,19 @@
+from functools import partial
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ray import tune
+from ray.tune.suggest.hyperopt import HyperOptSearch
+from ray.tune.schedulers import ASHAScheduler
+from ray.tune.integration.wandb import WandbLogger
 from sklearn import preprocessing
 import torch
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
+
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -16,6 +23,72 @@ VEGETABLES = [
     'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
     'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
 ]
+
+
+def rnn_trainer(config, options):    
+    # Assign Config, Options
+    training_size = options["training_size"]
+    target_values = options["target_values"]
+    
+    lr = config["lr"]
+    weight_decay = config["weight_decay"]
+    eps = config["eps"]
+    num_epochs = config["num_epochs"]
+    batch_size = config["batch_size"]
+    
+    # Preprocess Data
+    train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=training_size, batch_size=batch_size)
+
+    # Instantiate Model, Optimizer, Criterion, EarlyStopping
+    model = RNN(input_size=train.shape[2]).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
+    criterion = nn.MSELoss()
+
+    # Training & Test Loop
+    for _ in range(num_epochs):
+        model.train()
+
+        for _, (batch_x, batch_y) in enumerate(train_loader):
+            # Forward
+            out = model(batch_x)
+            loss = criterion(out, batch_y)
+
+            # Backward
+            optimizer.zero_grad()
+            loss.backward()
+
+            # Update Params
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
+            optimizer.step()
+
+        # Test
+        with torch.no_grad():
+            model.eval()
+            pred_y = model.predict(train, test, test.shape[0])
+            pred_y = pred_y.reshape(-1)
+            loss = criterion(pred_y, test_y)
+            tune.report(loss=loss.item())
+
+
+def pipeline_raytune(options, config, trainer=rnn_trainer):
+    
+    # Instantiate HyperOptSearch, ASHAScheduler
+    hyperopt = HyperOptSearch(metric="loss", mode="min")
+    scheduler = ASHAScheduler(
+        metric='loss', mode='min', max_t=1000,
+        grace_period=12, reduction_factor=2
+    )
+    
+    # Optimization
+    analysis = tune.run(
+        partial(trainer, options=options),
+        config=config,
+        num_samples=100,
+        search_alg=hyperopt,
+        resources_per_trial={'cpu':4, 'gpu':1},
+        scheduler=scheduler,
+        loggers=[WandbLogger]
+    )
 
 
 def get_terminal_score(sequence_size=10, num_epochs=200):
