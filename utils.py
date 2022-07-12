@@ -335,11 +335,7 @@ def pipeline_rnn_submit(train_loader, train, test, future=375,
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
 
-    # Prediction
-    with torch.no_grad():
-        model.eval()
-        pred_y = model.predict(train, test, future)
-    return pred_y
+    return model
 
 
 def pipeline_rnn(train_loader, train, test, test_y, future=375,
