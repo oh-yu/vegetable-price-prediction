@@ -46,9 +46,7 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
     # Get Score For Each Vegetable
     for vegetable in VEGETABLES:
         # Set Train Size
-        if vegetable == "レタス":
-            train_size = 1000
-        elif vegetable == "なましいたけ":
+        if vegetable == "なましいたけ":
             train_size = 3000
         elif vegetable == "セルリー":
             train_size = 2000
@@ -241,10 +239,10 @@ class RNN(nn.Module):
 
 
 def pipeline_rnn_submit(train_loader, train, test, future=375,
-                        num_epochs=100, lr=0.005, weight_decay=1e-3):
+                        num_epochs=100, lr=0.005, weight_decay=1e-3, eps=1e-8):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size = train.shape[2]).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
     # Training & Test Loop
