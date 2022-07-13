@@ -35,12 +35,14 @@ def rnn_trainer(config, options):
     eps = config["eps"]
     num_epochs = config["num_epochs"]
     batch_size = config["batch_size"]
+    dropout_ratio = config["dropout_ratio"]
+    hidden_size = config["hidden_size"]
     
     # Preprocess Data
     train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=training_size, batch_size=batch_size)
 
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size=train.shape[2]).to(DEVICE)
+    model = RNN(input_size=train.shape[2], dropout_ratio=dropout_ratio, hidden_size=hidden_size).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
