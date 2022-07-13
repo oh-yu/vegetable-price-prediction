@@ -132,6 +132,8 @@ def get_terminal_score(sequence_size=10, num_epochs=200):
 
         # Preprocess Data
         target_values = get_target_values(train_df, vegetable)
+        changed_col = [1, 0] + [i for i in np.arange(2, target_values.shape[1])]
+        target_values = target_values[:, changed_col]
         train_loader, test_y, train, test, _ = preprocess_data(
             target_values,train_size=train_size, T=sequence_size)
 
@@ -224,9 +226,9 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :6])
-    train[:, :6] = ss.transform(train[:, :6])
-    test[:, :6] = ss.transform(test[:, :6])
+    ss.fit(train[:, :7])
+    train[:, :7] = ss.transform(train[:, :7])
+    test[:, :7] = ss.transform(test[:, :7])
     train_N = train.shape[0] // T
     train = train[:train_N * T]
     train = train.reshape(train_N, T, feature_size)
@@ -416,8 +418,8 @@ class EarlyStopping:
 
 
 def plot_prediction(pred, test, ss):
-    test[:, :6] = ss.inverse_transform(test[:, :6])
-    pred[:, :6] = ss.inverse_transform(pred[:, :6])
+    test[:, :7] = ss.inverse_transform(test[:, :7])
+    pred[:, :7] = ss.inverse_transform(pred[:, :7])
 
     plt.title("pred vs test")
     plt.plot(test[:, 0], label="test")
