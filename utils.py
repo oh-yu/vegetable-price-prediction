@@ -191,7 +191,7 @@ def get_target_values(train, target_vegetable):
     interpolated_cols = ["mean_temp", "max_temp", "min_temp", "sum_rain", "mean_humid"]
     for col in interpolated_cols:
         target_df[col] = target_df[col].interpolate(limit=None, limit_direction='both').values
-    target_df = target_df.drop(columns=["kind", "date", "amount"])
+    target_df = target_df.drop(columns=["kind", "date"])
     target_values = target_df.values
     return target_values
 
@@ -200,9 +200,9 @@ def preprocess_data_submit(train, test, T=10, batch_size=16):
     feature_size = train.shape[1]
 
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :6])
-    train[:, :6] = ss.transform(train[:, :6])
-    test[:, :6] = ss.transform(test[:, :6])
+    ss.fit(train[:, :7])
+    train[:, :7] = ss.transform(train[:, :7])
+    test[:, :7] = ss.transform(test[:, :7])
 
     train_N = train.shape[0] // T
     train = train[-train_N * T:]
