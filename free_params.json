@@ -1,0 +1,162 @@
+{
+  "きゅうり": {
+    "T": 29,
+    "batch_size": 2291,
+    "num_epochs": 22,
+    "learning_rate": 0.0010388057489466452,
+    "weight_decay": 1.9585601800739626e-05,
+    "eps": 3.791503062878739e-15,
+    "hidden_size": 1051,
+    "dropout_ratio": 0.3891430778252923
+  },
+  "こまつな": {
+    "T": 31,
+    "batch_size": 2114,
+    "num_epochs": 116,
+    "learning_rate": 0.003098232310990713,
+    "weight_decay": 1.2083722258543687e-11,
+    "eps": 3.2696258510835913e-05,
+    "hidden_size": 988,
+    "dropout_ratio": 0.4303747844290968
+  },
+  "じゃがいも": {
+    "T": 26,
+    "batch_size": 920,
+    "num_epochs": 138,
+    "learning_rate": 0.0013910694946878718,
+    "weight_decay": 2.890321303666833e-10,
+    "eps": 5.583163703373735e-13,
+    "hidden_size": 1606,
+    "dropout_ratio": 0.6480235049963949
+  },
+  "セルリー": {
+    "T": 31,
+    "batch_size": 2114,
+    "num_epochs": 116,
+    "learning_rate": 0.003098232310990713,
+    "weight_decay": 1.2083722258543687e-11,
+    "eps": 3.2696258510835913e-05,
+    "hidden_size": 988,
+    "dropout_ratio": 0.4303747844290968
+  },
+  "そらまめ": {
+    "T": 10,
+    "batch_size": 1054,
+    "num_epochs": 100,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 500,
+    "dropout_ratio": 0.1
+  },
+  "だいこん": {
+    "T": 21,
+    "batch_size": 1575,
+    "num_epochs": 86,
+    "learning_rate": 0.0003676985939412362,
+    "weight_decay": 4.4147596512086347e-14,
+    "eps": 1.1556769165725467e-09,
+    "hidden_size": 1610,
+    "dropout_ratio": 0.6962869823917119
+  },
+  "なましいたけ": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 70,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 1000,
+    "dropout_ratio": 0.5
+  },
+  "にんじん": {
+    "T": 34,
+    "batch_size": 208,
+    "num_epochs": 130,
+    "learning_rate": 0.0023205123880201523,
+    "weight_decay": 8.202715310082193e-09,
+    "eps": 2.2583527937266124e-06,
+    "hidden_size": 781,
+    "dropout_ratio": 0.42726300591075544
+  },
+  "ねぎ": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 150,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 1000,
+    "dropout_ratio": 0.5
+  },
+  "はくさい": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 70,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 1000,
+    "dropout_ratio": 0.5
+  },
+  "ほうれんそう": {
+    "T": 26,
+    "batch_size": 920,
+    "num_epochs": 50,
+    "learning_rate": 0.0013910694946878718,
+    "weight_decay": 2.890321303666833e-10,
+    "eps": 5.583163703373735e-13,
+    "hidden_size": 1606,
+    "dropout_ratio": 0.6480235049963949
+  },
+  "ミニトマト": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 70,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 500,
+    "dropout_ratio": 0.5
+  },
+  "キャベツ": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 150,
+    "learning_rate": 0.005,
+    "weight_decay": 1e-08,
+    "eps": 1e-08,
+    "hidden_size": 1000,
+    "dropout_ratio": 0.1
+  },
+  "トマト": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 150,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 500,
+    "dropout_ratio": 0.5
+  },
+  "ピーマン": {
+    "T": 10,
+    "batch_size": 16,
+    "num_epochs": 150,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "eps": 1e-08,
+    "hidden_size": 500,
+    "dropout_ratio": 0.5
+  },
+  "レタス": {
+    "T": 22,
+    "batch_size": 798,
+    "num_epochs": 42,
+    "learning_rate": 0.0009961365995500412,
+    "weight_decay": 1.375040993040588e-13,
+    "eps": 2.604000922915906e-07,
+    "hidden_size": 234,
+    "dropout_ratio": 0.20820558973375333
+  }
+}

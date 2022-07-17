@@ -315,10 +315,10 @@ class RNN(nn.Module):
         return preds
 
 
-def pipeline_rnn_submit(train_loader, train, test, future=375,
-                        num_epochs=100, lr=0.005, weight_decay=1e-3, eps=1e-8):
+def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005,
+                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5):
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train.shape[2]).to(DEVICE)
+    model = RNN(input_size = train.shape[2], hidden_size=hidden_size, dropout_ratio=dropout_ratio).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
