@@ -7,7 +7,8 @@
     "weight_decay": 1.9585601800739626e-05,
     "eps": 3.791503062878739e-15,
     "hidden_size": 1051,
-    "dropout_ratio": 0.3891430778252923
+    "dropout_ratio": 0.3891430778252923,
+    "num_ensamble": 10
   },
   "こまつな": {
     "T": 31,
@@ -17,7 +18,8 @@
     "weight_decay": 1.2083722258543687e-11,
     "eps": 3.2696258510835913e-05,
     "hidden_size": 988,
-    "dropout_ratio": 0.4303747844290968
+    "dropout_ratio": 0.4303747844290968,
+    "num_ensamble": 10
   },
   "じゃがいも": {
     "T": 26,
@@ -27,7 +29,8 @@
     "weight_decay": 2.890321303666833e-10,
     "eps": 5.583163703373735e-13,
     "hidden_size": 1606,
-    "dropout_ratio": 0.6480235049963949
+    "dropout_ratio": 0.6480235049963949,
+    "num_ensamble": 5
   },
   "セルリー": {
     "T": 31,
@@ -37,7 +40,8 @@
     "weight_decay": 1.2083722258543687e-11,
     "eps": 3.2696258510835913e-05,
     "hidden_size": 988,
-    "dropout_ratio": 0.4303747844290968
+    "dropout_ratio": 0.4303747844290968,
+    "num_ensamble": 5
   },
   "そらまめ": {
     "T": 10,
@@ -47,7 +51,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 500,
-    "dropout_ratio": 0.1
+    "dropout_ratio": 0.1,
+    "num_ensamble": 10
   },
   "だいこん": {
     "T": 21,
@@ -57,7 +62,8 @@
     "weight_decay": 4.4147596512086347e-14,
     "eps": 1.1556769165725467e-09,
     "hidden_size": 1610,
-    "dropout_ratio": 0.6962869823917119
+    "dropout_ratio": 0.6962869823917119,
+    "num_ensamble": 5
   },
   "なましいたけ": {
     "T": 10,
@@ -67,7 +73,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 1000,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 25
   },
   "にんじん": {
     "T": 34,
@@ -77,7 +84,8 @@
     "weight_decay": 8.202715310082193e-09,
     "eps": 2.2583527937266124e-06,
     "hidden_size": 781,
-    "dropout_ratio": 0.42726300591075544
+    "dropout_ratio": 0.42726300591075544,
+    "num_ensamble": 50
   },
   "ねぎ": {
     "T": 10,
@@ -87,7 +95,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 1000,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 5
   },
   "はくさい": {
     "T": 10,
@@ -97,7 +106,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 1000,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 25
   },
   "ほうれんそう": {
     "T": 26,
@@ -107,7 +117,8 @@
     "weight_decay": 2.890321303666833e-10,
     "eps": 5.583163703373735e-13,
     "hidden_size": 1606,
-    "dropout_ratio": 0.6480235049963949
+    "dropout_ratio": 0.6480235049963949,
+    "num_ensamble": 5
   },
   "ミニトマト": {
     "T": 10,
@@ -117,7 +128,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 500,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 10
   },
   "キャベツ": {
     "T": 10,
@@ -127,7 +139,8 @@
     "weight_decay": 1e-08,
     "eps": 1e-08,
     "hidden_size": 1000,
-    "dropout_ratio": 0.1
+    "dropout_ratio": 0.1,
+    "num_ensamble": 50
   },
   "トマト": {
     "T": 10,
@@ -137,7 +150,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 500,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 5
   },
   "ピーマン": {
     "T": 10,
@@ -147,7 +161,8 @@
     "weight_decay": 0.001,
     "eps": 1e-08,
     "hidden_size": 500,
-    "dropout_ratio": 0.5
+    "dropout_ratio": 0.5,
+    "num_ensamble": 5
   },
   "レタス": {
     "T": 22,
@@ -157,6 +172,7 @@
     "weight_decay": 1.375040993040588e-13,
     "eps": 2.604000922915906e-07,
     "hidden_size": 234,
-    "dropout_ratio": 0.20820558973375333
+    "dropout_ratio": 0.20820558973375333,
+    "num_ensamble": 50
   }
 }
