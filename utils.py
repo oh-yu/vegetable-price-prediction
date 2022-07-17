@@ -342,18 +342,15 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
     return model
 
 
-def pipeline_rnn(train_loader, train, test, test_y, future=375,
-                 num_epochs=100, lr=0.005, weight_decay=1e-3, patience=30):
+def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
+                 weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5):
     # Variable To Store Prediction
-    preds = []
     train_losses = []
-    test_losses = []
 
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size=train.shape[2]).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    model = RNN(input_size=train.shape[2], hidden_size=hidden_size, dropout_ratio=dropout_ratio).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
-    early_stopping = EarlyStopping(patience=patience)
 
     # Training & Test Loop
     for _ in range(num_epochs):
@@ -384,16 +381,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
             pred_y = model.predict(train, test, future)
             pred_y = pred_y.reshape(-1)
             loss = criterion(pred_y, test_y)
-            preds.append(pred_y)
-            test_losses.append(loss.item())
 
-        # Early Stopping
-        early_stopping(loss.item())
-        if early_stopping.early_stop:
-            print(f"early stop at: {np.min(test_losses)}")
-            loss = np.min(test_losses)
-            pred_y = preds[np.argmin(test_losses)]
-            break
     return pred_y, loss
 
 
