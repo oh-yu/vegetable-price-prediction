@@ -52,7 +52,7 @@
     "eps": 1e-08,
     "hidden_size": 500,
     "dropout_ratio": 0.1,
-    "num_ensamble": 10
+    "num_ensamble": 50
   },
   "だいこん": {
     "T": 21,
