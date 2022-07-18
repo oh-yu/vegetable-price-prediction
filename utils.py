@@ -25,6 +25,22 @@ VEGETABLES = [
 ]
 
 
+class RMSPELoss:
+    def __init__(self):
+        pass
+    def __call__(self, preds, ys):
+        preds = preds.reshape(-1)
+        ys = ys.reshape(-1)
+        N = len(ys)
+        losses = torch.zeros(N)
+
+        for i, (pred, y) in enumerate(zip(preds, ys)):
+            losses[i] = (pred-y) / y
+        losses = torch.sum(losses)
+        losses = ((losses**2)/N) * 100
+        return losses
+    
+
 def rnn_trainer(config, options):    
     # Assign Config, Options
     training_size = options["training_size"]
