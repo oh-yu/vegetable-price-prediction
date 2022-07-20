@@ -15,7 +15,6 @@ import torch.nn.functional as F
 from torch.utils.data import TensorDataset, DataLoader
 
 
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 VEGETABLES = [
     'だいこん', 'にんじん', 'キャベツ', 'レタス',
@@ -264,22 +263,30 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
 
 
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5):
+    def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5, is_attention=False):
         super().__init__()
+        self.is_attention = is_attention
+        self.hidden_size = hidden_size
+        self.fc1_size = int(hidden_size/2)*2 if is_attention else int(hidden_size/2)
+
         self.rnn1 = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.rnn2 = nn.LSTM(hidden_size, int(hidden_size/2), batch_first=True)
 
         self.dropout1 = nn.Dropout(dropout_ratio)
-        self.fc1 = nn.Linear(int(hidden_size/2), int(hidden_size/4))
+        self.fc1 = nn.Linear(self.fc1_size, int(hidden_size/4))
         self.dropout2 = nn.Dropout(dropout_ratio)
         self.fc2 = nn.Linear(int(hidden_size/4), int(hidden_size/10))
-
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
 
     def forward(self, x):
         self.train()
         out, (h_t1, c_t1) = self.rnn1(x)
         out, (h_t2, c_t2) = self.rnn2(out)
+        
+        if self.is_attention:
+            contexts = get_contexts_by_selfattention(out, DEVICE)
+            out = torch.cat((contexts, out), dim=2)
+
         out = self.dropout1(F.relu(self.fc1(out)))
         out = self.dropout2(F.relu(self.fc2(out)))
         out = self.fc3(out)
@@ -314,10 +321,18 @@ class RNN(nn.Module):
 
         # future prediction
         preds = torch.zeros(1, future, 1).to(DEVICE)
+        hs = torch.zeros(1, future, int(self.hidden_size/2)).to(DEVICE) if self.is_attention else None
+
         self.eval()
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
             pred, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
+            
+            if self.is_attention:
+                hs[:, t, :] = pred.squeeze(1)
+                context = get_contexts_by_selfattention_during_prediction(t, pred, hs, DEVICE)
+                pred = torch.cat((context, pred), dim=2)
+
             pred = self.dropout1(F.relu(self.fc1(pred)))
             pred = self.dropout2(F.relu(self.fc2(pred)))
             pred = self.fc3(pred).squeeze(1)
@@ -329,6 +344,33 @@ class RNN(nn.Module):
             start_x = start_x.unsqueeze(0)
             # start_x shape: (1, 1, feature_size)
         return preds
+
+
+def get_contexts_by_selfattention(hs, device):
+    N, T, H = hs.shape
+    contexts = torch.zeros(N, T, H).to(device)
+    for t in range(T):
+        h_t = hs[:, t, :].unsqueeze(1)
+        h_t = h_t.repeat(1, t+1, 1)
+        attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
+        attention = F.softmax(attention, dim=1)
+        attention = attention.unsqueeze(2)
+        attention = attention.repeat(1, 1, H)
+        context = (attention*hs[:, :t+1, :]).sum(axis=1)
+        contexts[:, t, :] = context
+    return contexts
+
+
+# TODO: refactor(this function mostly duplicates get_contexts_by_selfattention())
+def get_contexts_by_selfattention_during_prediction(t, pred, hs, device):
+    h_t = pred.repeat(1, t+1, 1)
+    attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
+    attention = F.softmax(attention, dim=1)
+    attention = attention.unsqueeze(2)
+    attention = attention.repeat(1, 1, hs.shape[2])
+    context = (attention*hs[:, :t+1, :]).sum(axis=1)
+    context = context.unsqueeze(1)
+    return context
 
 
 def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005,
@@ -359,12 +401,13 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
 
 
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
-                 weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5):
+                 weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
     # Variable To Store Prediction
     train_losses = []
 
     # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size=train.shape[2], hidden_size=hidden_size, dropout_ratio=dropout_ratio).to(DEVICE)
+    model = RNN(input_size=train.shape[2], hidden_size=hidden_size,
+                dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
