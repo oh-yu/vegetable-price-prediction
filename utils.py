@@ -296,7 +296,13 @@ class RNN(nn.Module):
         self.c_t1 = c_t1
         self.h_t2 = h_t2
         self.c_t2 = c_t2
-        return out
+        hidden_memory = {
+            "h_t1": h_t1,
+            "c_t1": c_t1,
+            "h_t2": h_t2,
+            "c_t2": c_t2,
+        }
+        return out, hidden_memory
 
     def predict(self, train, test, future):
         # assign hidden vector, memory cell, output from network
@@ -374,9 +380,10 @@ def get_contexts_by_selfattention_during_prediction(t, pred, hs, device):
 
 
 def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005,
-                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5):
+                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train.shape[2], hidden_size=hidden_size, dropout_ratio=dropout_ratio).to(DEVICE)
+    model = RNN(input_size = train.shape[2], hidden_size=hidden_size,
+                dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
@@ -386,7 +393,7 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
 
         for (batch_x, batch_y) in train_loader:
             # Forward
-            out = model(batch_x)
+            out, hidden_memory = model(batch_x)
             loss = criterion(out, batch_y)
 
             # Backward
@@ -397,7 +404,7 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
 
-    return model
+    return model, out, hidden_memory
 
 
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
