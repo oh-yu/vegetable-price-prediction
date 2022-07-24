@@ -22,7 +22,7 @@
     "hidden_size": 988,
     "dropout_ratio": 0.4303747844290968,
     "is_attention": 0,
-    "num_ensamble": 10,
+    "num_ensamble": 5,
     "seed": 1
   },
   "じゃがいも": {
@@ -100,7 +100,7 @@
     "hidden_size": 781,
     "dropout_ratio": 0.42726300591075544,
     "is_attention": 1,
-    "num_ensamble": 50,
+    "num_ensamble": 5,
     "seed": 11
   },
   "ねぎ": {
@@ -165,7 +165,7 @@
     "hidden_size": 709,
     "dropout_ratio": 0.8584144095865284,
     "is_attention": 0,
-    "num_ensamble": 50,
+    "num_ensamble": 5,
     "seed": 1
   },
   "トマト": {
