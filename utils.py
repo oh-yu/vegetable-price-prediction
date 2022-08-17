@@ -309,6 +309,7 @@ class RNN(nn.Module):
         _, (h_t2, c_t2) = self.rnn2(out)
         
         if self.is_attention:
+            # TODO: adjust for many-to-one version
             contexts = get_contexts_by_selfattention(out, DEVICE)
             out = torch.cat((contexts, out), dim=2)
 
@@ -353,6 +354,7 @@ class RNN(nn.Module):
             _, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
             
             if self.is_attention:
+                # TODO: adjust for many-to-one version
                 hs[:, t, :] = pred.squeeze(1)
                 context = get_contexts_by_selfattention_during_prediction(t, pred, hs, DEVICE)
                 pred = torch.cat((context, pred), dim=2)
