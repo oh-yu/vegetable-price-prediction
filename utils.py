@@ -237,6 +237,31 @@ def preprocess_data_submit(train, test, T=10, batch_size=16):
     return train_loader, train, test, ss
 
 
+def preprocess_data_mto1(train, test, T=10, batch_size=16):
+    feature_size = train.shape[1]
+
+    ss = preprocessing.StandardScaler()
+    ss.fit(train[:, :7])
+    train[:, :7] = ss.transform(train[:, :7])
+    test[:, :7] = ss.transform(test[:, :7])
+
+    train_N = train.shape[0] // T
+    train = train[-train_N * T:]
+    train_size = train.shape[0]
+    train = torch.tensor(train, dtype=torch.float32).to(DEVICE)
+    test = torch.tensor(test, dtype=torch.float32).to(DEVICE)
+
+    train_x = torch.zeros(train_size-T, T, feature_size)
+    train_y = torch.zeros(train_size-T, 1)
+    for t in range(train_size-T):
+        train_x[t] = train[t:t+T, :]
+        train_y[t] = train[t+T, 0]
+    
+    train_ds = TensorDataset(train_x, train_y)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
+    return train_loader, train, test, ss
+
+
 def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
     feature_size = target_values.shape[1]
 
@@ -281,12 +306,14 @@ class RNN(nn.Module):
     def forward(self, x):
         self.train()
         out, (h_t1, c_t1) = self.rnn1(x)
-        out, (h_t2, c_t2) = self.rnn2(out)
+        _, (h_t2, c_t2) = self.rnn2(out)
         
         if self.is_attention:
             contexts = get_contexts_by_selfattention(out, DEVICE)
             out = torch.cat((contexts, out), dim=2)
 
+        # h_t2 shape: (num_layers, N, H)
+        out = h_t2.squeeze(0)
         out = self.dropout1(F.relu(self.fc1(out)))
         out = self.dropout2(F.relu(self.fc2(out)))
         out = self.fc3(out)
@@ -296,13 +323,7 @@ class RNN(nn.Module):
         self.c_t1 = c_t1
         self.h_t2 = h_t2
         self.c_t2 = c_t2
-        hidden_memory = {
-            "h_t1": h_t1,
-            "c_t1": c_t1,
-            "h_t2": h_t2,
-            "c_t2": c_t2,
-        }
-        return out, hidden_memory
+        return out
 
     def predict(self, train, test, future):
         # assign hidden vector, memory cell, output from network
@@ -313,12 +334,9 @@ class RNN(nn.Module):
         c_t2 = self.c_t2
 
         # prepare start_x
-        # start_x shape: (1, 1, feature_size)
-        # out shape: (N, T, 1)
-        start_x0 = out[-1, -1, :].reshape(1, -1)
-        start_x_other = torch.tensor(train[-1, -1, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
-        start_x = torch.cat((start_x0, start_x_other), axis=1)
-        start_x = start_x.unsqueeze(1)
+        # start_x shape: (1, T, feature_size)
+        # train shape: (N, D)
+        start_x = train[-3:, :].unsqueeze(0)
 
         # prepare h_t, c,t
         # h_t, c_t shape: (num_layers, N, H)
@@ -326,29 +344,29 @@ class RNN(nn.Module):
         h_t2, c_t2 = h_t2[:, -1, :].unsqueeze(1), c_t2[:, -1, :].unsqueeze(1)
 
         # future prediction
-        preds = torch.zeros(1, future, 1).to(DEVICE)
+        preds = torch.zeros(future, 1).to(DEVICE)
         hs = torch.zeros(1, future, int(self.hidden_size/2)).to(DEVICE) if self.is_attention else None
 
         self.eval()
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
-            pred, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
+            _, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
             
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
                 context = get_contexts_by_selfattention_during_prediction(t, pred, hs, DEVICE)
                 pred = torch.cat((context, pred), dim=2)
 
+            pred = h_t2.squeeze(0)
             pred = self.dropout1(F.relu(self.fc1(pred)))
             pred = self.dropout2(F.relu(self.fc2(pred)))
-            pred = self.fc3(pred).squeeze(1)
-            preds[:, t, :] = pred
+            pred = self.fc3(pred)
+            preds[t] = pred.squeeze(1)
 
-            start_x0 = pred
-            start_x_other = torch.tensor(test[t, 1:].reshape(1, -1), dtype=torch.long).to(DEVICE)
-            start_x = torch.cat((start_x0, start_x_other), axis=1)
-            start_x = start_x.unsqueeze(0)
-            # start_x shape: (1, 1, feature_size)
+            x_t = torch.cat((pred, test[t, 1:].reshape(1, -1)), dim=1)
+            x_t = x_t.unsqueeze(1)
+            start_x = torch.cat((start_x, x_t), dim=1)
+            start_x = start_x[:, 1:, :]
         return preds
 
 
@@ -380,10 +398,9 @@ def get_contexts_by_selfattention_during_prediction(t, pred, hs, device):
 
 
 def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005,
-                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
+                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5):
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train.shape[2], hidden_size=hidden_size,
-                dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
+    model = RNN(input_size = train.shape[1], hidden_size=hidden_size, dropout_ratio=dropout_ratio).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
     criterion = nn.MSELoss()
 
@@ -392,8 +409,11 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
         model.train()
 
         for (batch_x, batch_y) in train_loader:
-            # Forward
-            out, hidden_memory = model(batch_x)
+            batch_x = batch_x.to(DEVICE)
+            batch_y= batch_y.to(DEVICE)
+
+            # Forward            
+            out = model(batch_x)
             loss = criterion(out, batch_y)
 
             # Backward
@@ -404,7 +424,7 @@ def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, l
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
 
-    return model, out, hidden_memory
+    return model
 
 
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
