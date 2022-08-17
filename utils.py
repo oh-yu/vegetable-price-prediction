@@ -40,130 +40,6 @@ class RMSPELoss:
         return losses
     
 
-def rnn_trainer(config, options):    
-    # Assign Config, Options
-    training_size = options["training_size"]
-    target_values = options["target_values"]
-    
-    lr = config["lr"]
-    weight_decay = config["weight_decay"]
-    eps = config["eps"]
-    num_epochs = config["num_epochs"]
-    batch_size = config["batch_size"]
-    dropout_ratio = config["dropout_ratio"]
-    hidden_size = config["hidden_size"]
-    
-    # Preprocess Data
-    train_loader, test_y, train, test, ss = preprocess_data(target_values, train_size=training_size, batch_size=batch_size)
-
-    # Instantiate Model, Optimizer, Criterion, EarlyStopping
-    model = RNN(input_size=train.shape[2], dropout_ratio=dropout_ratio, hidden_size=hidden_size).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
-    criterion = nn.MSELoss()
-
-    # Training & Test Loop
-    for _ in range(num_epochs):
-        model.train()
-
-        for _, (batch_x, batch_y) in enumerate(train_loader):
-            # Forward
-            out = model(batch_x)
-            loss = criterion(out, batch_y)
-
-            # Backward
-            optimizer.zero_grad()
-            loss.backward()
-
-            # Update Params
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
-            optimizer.step()
-
-        # Test
-        with torch.no_grad():
-            model.eval()
-            pred_y = model.predict(train, test, test.shape[0])
-            pred_y = pred_y.reshape(-1)
-            loss = criterion(pred_y, test_y)
-            tune.report(loss=loss.item())
-
-
-def pipeline_raytune(options, config, trainer=rnn_trainer):
-    
-    # Instantiate HyperOptSearch, ASHAScheduler
-    hyperopt = HyperOptSearch(metric="loss", mode="min")
-    scheduler = ASHAScheduler(
-        metric='loss', mode='min', max_t=1000,
-        grace_period=12, reduction_factor=2
-    )
-    
-    # Optimization
-    analysis = tune.run(
-        partial(trainer, options=options),
-        config=config,
-        num_samples=100,
-        search_alg=hyperopt,
-        resources_per_trial={'cpu':4, 'gpu':1},
-        scheduler=scheduler,
-        loggers=[WandbLogger]
-    )
-
-
-def get_terminal_score(sequence_size=10, num_epochs=200):
-    scores = []
-
-    # Load Train
-    train_test = pd.read_csv("./data/mapped_train_test.csv")
-    train_test["date"] = pd.to_datetime(train_test["date"], format="%Y-%m-%d")
-    weather = pd.read_csv("./data/sorted_mapped_adjusted_weather.csv")
-    train_test = pd.concat([train_test, weather], axis=1)
-
-    train_test["year"] = train_test.date.dt.year
-    years = pd.get_dummies(train_test["year"])
-    train_test = train_test.drop(columns="year")
-    train_test = pd.concat([train_test, years], axis=1)
-
-    train_test["month"] = train_test.date.dt.month
-    months = pd.get_dummies(train_test["month"])
-    train_test = train_test.drop(columns="month")
-    train_test = pd.concat([train_test, months], axis=1)
-
-    areas = pd.get_dummies(train_test["area"])
-    train_test = train_test.drop(columns="area")
-    train_test = pd.concat([train_test, areas], axis=1)
-    
-    train_df = train_test[:pd.read_csv("./data/train.csv").shape[0]]
-
-    # Get Score For Each Vegetable
-    for vegetable in VEGETABLES:
-        # Set Train Size
-        if vegetable == "なましいたけ":
-            train_size = 3000
-        elif vegetable == "セルリー":
-            train_size = 2000
-        elif vegetable == "そらまめ":
-            train_size = 800
-        elif vegetable == "ミニトマト":
-            train_size = 1500
-        else:
-            train_size = 4000
-
-        # Preprocess Data
-        target_values = get_target_values(train_df, vegetable)
-        changed_col = [1, 0] + [i for i in np.arange(2, target_values.shape[1])]
-        target_values = target_values[:, changed_col]
-        train_loader, test_y, train, test, _ = preprocess_data(
-            target_values,train_size=train_size, T=sequence_size)
-
-        # Training, Test
-        print(f"{vegetable}: ")
-        _, loss = pipeline_rnn(train_loader, train, test, test_y,
-                               future=test.shape[0], num_epochs=num_epochs)
-        scores.append(loss)
-
-    # Log
-    print(f"MSE: {np.mean(scores)}({np.std(scores)})")
-
-
 def get_sorted_weather(train, temps):
 
     """
@@ -213,28 +89,6 @@ def get_target_values(train, target_vegetable):
     target_df = target_df.drop(columns=["kind", "date"])
     target_values = target_df.values
     return target_values
-
-
-def preprocess_data_submit(train, test, T=10, batch_size=16):
-    feature_size = train.shape[1]
-
-    ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :7])
-    train[:, :7] = ss.transform(train[:, :7])
-    test[:, :7] = ss.transform(test[:, :7])
-
-    train_N = train.shape[0] // T
-    train = train[-train_N * T:]
-    train = train.reshape(train_N, T, feature_size)
-    train_x = train[:, :-1, :]
-    train_y = train[:, 1:, :1]
-
-    train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
-    train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
-
-    train_ds = TensorDataset(train_x, train_y)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
-    return train_loader, train, test, ss
 
 
 def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
@@ -379,34 +233,6 @@ def get_contexts_by_selfattention_during_prediction(t, pred, hs, device):
     return context
 
 
-def pipeline_rnn_submit(train_loader, train, test, future=375, num_epochs=100, lr=0.005,
-                        weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
-    # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size = train.shape[2], hidden_size=hidden_size,
-                dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
-    criterion = nn.MSELoss()
-
-    # Training & Test Loop
-    for _ in range(num_epochs):
-        model.train()
-
-        for (batch_x, batch_y) in train_loader:
-            # Forward
-            out, hidden_memory = model(batch_x)
-            loss = criterion(out, batch_y)
-
-            # Backward
-            optimizer.zero_grad()
-            loss.backward()
-
-            # Update Params
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
-            optimizer.step()
-
-    return model, out, hidden_memory
-
-
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
                  weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
     # Variable To Store Prediction
@@ -449,50 +275,6 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
             loss = criterion(pred_y, test_y)
 
     return pred_y, loss
-
-
-class EarlyStopping:
-
-    """
-    This class is from https://github.com/Bjarten/early-stopping-pytorch
-    ----------
-    MIT License
-    Copyright (c) 2018 Bjarte Mehus Sunde
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    """
-
-    def __init__(self, patience=7, delta=0):
-        self.patience = patience
-        self.counter = 0
-        self.best_score = None
-        self.early_stop = False
-        self.delta = delta
-
-    def __call__(self, val_loss):
-        score = -val_loss
-        if self.best_score is None:
-            self.best_score = score
-        elif score < self.best_score + self.delta:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.early_stop = True
-        else:
-            self.best_score = score
-            self.counter = 0
 
 
 def plot_prediction(pred, test, ss):
