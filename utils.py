@@ -426,7 +426,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
 
         for idx, (batch_x, batch_y) in enumerate(train_loader):
             # Forward
-            out = model(batch_x)
+            out, _ = model(batch_x)
             loss = criterion(out, batch_y)
 
             # Backward
@@ -452,6 +452,28 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
 
 
 class EarlyStopping:
+
+    """
+    This class is from https://github.com/Bjarten/early-stopping-pytorch
+    ----------
+    MIT License
+    Copyright (c) 2018 Bjarte Mehus Sunde
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+    """
 
     def __init__(self, patience=7, delta=0):
         self.patience = patience
