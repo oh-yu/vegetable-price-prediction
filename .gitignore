@@ -1,3 +1,9 @@
+# ./wandb_api_key.txt
+wandb_api_key.txt
+
+# data/mapped_adjusted_weather.csv
+data/mapped_adjusted_weather.csv
+
 # .pylintrc
 *.pylintrc
 
