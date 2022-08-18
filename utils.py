@@ -75,6 +75,42 @@ def get_sorted_weather(train, temps):
 
 
 def get_target_values(train, target_vegetable):
+
+    """
+    Extracts features corresponding to one target vegetable.
+    Interpolates missing values in temperature related features.
+
+    Parameters
+    ----------
+    train : pandas.DataFrame
+        Two-dimensional array.
+        Represents explanatory variables including temperature features, axis0 is the number of samples and axis1 is the features.
+
+        train_test = pd.read_csv("./data/mapped_train_test.csv")
+        train_test["date"] = pd.to_datetime(train_test["date"], format="%Y-%m-%d")
+        weather = pd.read_csv("./data/sorted_mapped_adjusted_weather.csv")
+        train_test = pd.concat([train_test, weather], axis=1)
+
+        train_test["year"] = train_test.date.dt.year
+        years = pd.get_dummies(train_test["year"])
+        train_test = train_test.drop(columns="year")
+        train_test = pd.concat([train_test, years], axis=1)
+
+        train_test["month"] = train_test.date.dt.month
+        months = pd.get_dummies(train_test["month"])
+        train_test = train_test.drop(columns="month")
+        train_test = pd.concat([train_test, months], axis=1)
+
+        areas = pd.get_dummies(train_test["area"])
+        train_test = train_test.drop(columns="area")
+        train_test = pd.concat([train_test, areas], axis=1)
+
+        train = train_test[:pd.read_csv("./data/train.csv").shape[0]]
+
+    target_vegetable : string
+        This string specify a target of vegetbles.
+    """
+
     target_df = train[train.kind == target_vegetable].sort_values("date")
     interpolated_cols = ["mean_temp", "max_temp", "min_temp", "sum_rain", "mean_humid"]
     for col in interpolated_cols:
