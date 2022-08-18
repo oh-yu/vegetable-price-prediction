@@ -120,28 +120,36 @@ def get_target_values(train, target_vegetable):
     return target_values
 
 
-def preprocess_data(target_values, train_size=4000, T=10, batch_size=16):
+def preprocess_data(target_values, train_size=4000, T=10, batch_size=16, continuous_feature_index=7):
+    # 1. split data into training, test
     feature_size = target_values.shape[1]
-
     train = target_values[:train_size, :]
     test = target_values[train_size:, :]
+
+    # 2. standardization
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :7])
-    train[:, :7] = ss.transform(train[:, :7])
-    test[:, :7] = ss.transform(test[:, :7])
-    train_N = train.shape[0] // T
+    ss.fit(train[:, :continuous_feature_index])
+    train[:, :continuous_feature_index] = ss.transform(train[:, :continuous_feature_index])
+    test[:, :continuous_feature_index] = ss.transform(test[:, :continuous_feature_index])
+
+    # 3. reshape training data into shape of (N, T, D)
+    if train.shape[0] % T == 0:
+        train_N = train.shape[0] // T
+    else:
+        print("some samples in training data are ignored")
     train = train[:train_N * T]
     train = train.reshape(train_N, T, feature_size)
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
 
+    # 4. convert into torch.tensor, on DEVICE, DataLoader 
     train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
     train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32).to(DEVICE)
-
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
+
     return train_loader, test_y, train, test, ss
 
 
