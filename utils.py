@@ -26,12 +26,11 @@ class RMSPELoss:
         ys = ys.reshape(-1)
         N = len(ys)
         losses = torch.zeros(N)
-
         for i, (pred, y) in enumerate(zip(preds, ys)):
-            losses[i] = (pred-y) / y
-        losses = torch.sum(losses)
-        losses = ((losses**2)/N) * 100
-        return losses
+            losses[i] = ((pred-y) / y)**2
+        loss = torch.sum(losses)
+        loss = 100 * ((loss/N)**0.5)
+        return loss
 
 
 def get_sorted_weather(train, temps):
