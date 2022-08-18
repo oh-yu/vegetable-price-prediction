@@ -170,30 +170,27 @@ class RNN(nn.Module):
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
 
     def forward(self, x):
-        self.train()
+        # x shape: (N, T, D)
         out, (h_t1, c_t1) = self.rnn1(x)
         out, (h_t2, c_t2) = self.rnn2(out)
-        
+        # out shape: (N, T, int(hidden_size/2))
+
         if self.is_attention:
             contexts = get_contexts_by_selfattention(out, DEVICE)
             out = torch.cat((contexts, out), dim=2)
+            # out shape: (N, T, int(hidden_size/2)*2)
 
         out = self.dropout1(F.relu(self.fc1(out)))
         out = self.dropout2(F.relu(self.fc2(out)))
         out = self.fc3(out)
+        # out shape: (N, T, 1)
 
         self.out = out
         self.h_t1 = h_t1
         self.c_t1 = c_t1
         self.h_t2 = h_t2
         self.c_t2 = c_t2
-        hidden_memory = {
-            "h_t1": h_t1,
-            "c_t1": c_t1,
-            "h_t2": h_t2,
-            "c_t2": c_t2,
-        }
-        return out, hidden_memory
+        return out
 
     def predict(self, train, test, future):
         # assign hidden vector, memory cell, output from network
