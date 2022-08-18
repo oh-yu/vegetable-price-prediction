@@ -1,12 +1,5 @@
-from functools import partial
-
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-from ray import tune
-from ray.tune.suggest.hyperopt import HyperOptSearch
-from ray.tune.schedulers import ASHAScheduler
-from ray.tune.integration.wandb import WandbLogger
 from sklearn import preprocessing
 import torch
 from torch import nn
@@ -27,6 +20,7 @@ VEGETABLES = [
 class RMSPELoss:
     def __init__(self):
         pass
+
     def __call__(self, preds, ys):
         preds = preds.reshape(-1)
         ys = ys.reshape(-1)
@@ -38,7 +32,7 @@ class RMSPELoss:
         losses = torch.sum(losses)
         losses = ((losses**2)/N) * 100
         return losses
-    
+
 
 def get_sorted_weather(train, temps):
 
