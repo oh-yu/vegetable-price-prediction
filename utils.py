@@ -176,7 +176,7 @@ class RNN(nn.Module):
         # out shape: (N, T, int(hidden_size/2))
 
         if self.is_attention:
-            contexts = get_contexts_by_selfattention(out, DEVICE)
+            contexts = get_contexts_by_attention(out, DEVICE)
             out = torch.cat((contexts, out), dim=2)
             # out shape: (N, T, int(hidden_size/2)*2)
 
@@ -216,15 +216,15 @@ class RNN(nn.Module):
         # future prediction
         preds = torch.zeros(1, future, 1).to(DEVICE)
         hs = torch.zeros(1, future, int(self.hidden_size/2)).to(DEVICE) if self.is_attention else None
-
         self.eval()
+
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
             pred, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
             
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
-                context = get_contexts_by_selfattention_during_prediction(t, pred, hs, DEVICE)
+                context = get_contexts_by_attention_during_prediction(t, pred, hs, DEVICE)
                 pred = torch.cat((context, pred), dim=2)
 
             pred = self.dropout1(F.relu(self.fc1(pred)))
@@ -240,7 +240,7 @@ class RNN(nn.Module):
         return preds
 
 
-def get_contexts_by_selfattention(hs, device):
+def get_contexts_by_attention(hs, device):
     N, T, H = hs.shape
     contexts = torch.zeros(N, T, H).to(device)
     for t in range(T):
@@ -255,8 +255,8 @@ def get_contexts_by_selfattention(hs, device):
     return contexts
 
 
-# TODO: refactor(this function mostly duplicates get_contexts_by_selfattention())
-def get_contexts_by_selfattention_during_prediction(t, pred, hs, device):
+# TODO: refactor(this function mostly duplicates get_contexts_by_attention())
+def get_contexts_by_attention_during_prediction(t, pred, hs, device):
     h_t = pred.repeat(1, t+1, 1)
     attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
     attention = F.softmax(attention, dim=1)
@@ -286,7 +286,7 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
 
         for idx, (batch_x, batch_y) in enumerate(train_loader):
             # Forward
-            out, _ = model(batch_x)
+            out = model(batch_x)
             loss = criterion(out, batch_y)
 
             # Backward
