@@ -176,7 +176,7 @@ class RNN(nn.Module):
         # out shape: (N, T, int(hidden_size/2))
 
         if self.is_attention:
-            contexts = get_contexts_by_attention(out, DEVICE)
+            contexts = get_contexts(out, DEVICE)
             out = torch.cat((contexts, out), dim=2)
             # out shape: (N, T, int(hidden_size/2)*2)
 
@@ -224,7 +224,7 @@ class RNN(nn.Module):
             
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
-                context = get_contexts_by_attention_during_prediction(t, pred, hs, DEVICE)
+                context = get_context_during_prediction(t, pred, hs)
                 pred = torch.cat((context, pred), dim=2)
 
             pred = self.dropout1(F.relu(self.fc1(pred)))
@@ -240,30 +240,29 @@ class RNN(nn.Module):
         return preds
 
 
-def get_contexts_by_attention(hs, device):
+def get_contexts(hs, device):
     N, T, H = hs.shape
     contexts = torch.zeros(N, T, H).to(device)
     for t in range(T):
         h_t = hs[:, t, :].unsqueeze(1)
-        h_t = h_t.repeat(1, t+1, 1)
-        attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
-        attention = F.softmax(attention, dim=1)
-        attention = attention.unsqueeze(2)
-        attention = attention.repeat(1, 1, H)
-        context = (attention*hs[:, :t+1, :]).sum(axis=1)
+        context = attention(h_t, hs, t)
         contexts[:, t, :] = context
     return contexts
 
 
-# TODO: refactor(this function mostly duplicates get_contexts_by_attention())
-def get_contexts_by_attention_during_prediction(t, pred, hs, device):
-    h_t = pred.repeat(1, t+1, 1)
+def get_context_during_prediction(t, h_t, hs):
+    context = attention(h_t, hs, t)
+    context = context.unsqueeze(1)
+    return context
+
+
+def attention(h_t, hs, t):
+    h_t = h_t.repeat(1, t+1, 1)
     attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
     attention = F.softmax(attention, dim=1)
     attention = attention.unsqueeze(2)
     attention = attention.repeat(1, 1, hs.shape[2])
     context = (attention*hs[:, :t+1, :]).sum(axis=1)
-    context = context.unsqueeze(1)
     return context
 
 
