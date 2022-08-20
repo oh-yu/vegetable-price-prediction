@@ -34,7 +34,6 @@ class RMSPELoss:
 
 
 def get_sorted_weather(train, temps):
-
     """
     Sort features extracted from the temperature-related data in the correspoding date and vegetable kind.
     Currently missiing values are interpolated by the mean of several areas in a given date.
@@ -57,7 +56,6 @@ def get_sorted_weather(train, temps):
         temps = pd.read_csv("./data/mapped_adjusted_weather.csv")
         temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
     """
-
     df = pd.DataFrame()
     c = 0
     for _, vals in train.iterrows():
@@ -75,7 +73,6 @@ def get_sorted_weather(train, temps):
 
 
 def get_target_values(train, target_vegetable):
-
     """
     Extracts features corresponding to one target vegetable.
     Interpolates missing values in temperature related features.
@@ -110,7 +107,6 @@ def get_target_values(train, target_vegetable):
     target_vegetable : string
         This string specify a target of vegetbles.
     """
-
     target_df = train[train.kind == target_vegetable].sort_values("date")
     interpolated_cols = ["mean_temp", "max_temp", "min_temp", "sum_rain", "mean_humid"]
     for col in interpolated_cols:
@@ -193,6 +189,26 @@ class RNN(nn.Module):
         return out
 
     def predict(self, train, test, future):
+        """
+        LSTM-Attention predicts value for future time steps, following the tail end of the training data.
+
+        Parameters
+        ----------
+        train : pandas.DataFrame
+            Two-dimensional array.
+            Represents explanatory variables for training including temperature features, axis0 is the number of samples and axis1 is the features.
+
+            train_loader, test_y, train, test, ss = utils.preprocess_data(target_values, train_size=training_size,
+                                                                          T=param["T"], batch_size=param["batch_size"])
+        test : pandas.DataFrame
+            Two-dimensional array.
+            Represents explanatory variables for testing including temperature features, axis0 is the number of samples and axis1 is the features.
+
+            train_loader, test_y, train, test, ss = utils.preprocess_data(target_values, train_size=training_size,
+                                                                          T=param["T"], batch_size=param["batch_size"])
+        future : int
+            This specifies how long model should predict.
+        """
         # assign hidden vector, memory cell, output from network
         out = self.out
         h_t1 = self.h_t1
@@ -269,10 +285,7 @@ def get_contexts_by_attention_during_prediction(t, pred, hs, device):
 
 def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
                  weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
-    # Variable To Store Prediction
-    train_losses = []
-
-    # Instantiate Model, Optimizer, Criterion, EarlyStopping
+    # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size=train.shape[2], hidden_size=hidden_size,
                 dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
@@ -281,10 +294,8 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
     # Training & Test Loop
     for _ in range(num_epochs):
         model.train()
-        running_loss = 0.0
-        idx = None
 
-        for idx, (batch_x, batch_y) in enumerate(train_loader):
+        for _, (batch_x, batch_y) in enumerate(train_loader):
             # Forward
             out = model(batch_x)
             loss = criterion(out, batch_y)
@@ -296,10 +307,6 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, 
             # Update Params
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1)
             optimizer.step()
-
-            # Add Training Loss
-            running_loss += loss.item()
-        train_losses.append(running_loss / (idx+1))
 
         # Test
         with torch.no_grad():
