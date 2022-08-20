@@ -18,6 +18,8 @@ VEGETABLES = [
 
 
 class RMSPELoss:
+    # pylint: disable=too-few-public-methods
+    # It seems reasonable in this case.
     def __init__(self):
         pass
 
@@ -35,7 +37,8 @@ class RMSPELoss:
 
 def get_sorted_weather(train, temps):
     """
-    Sort features extracted from the temperature-related data in the correspoding date and vegetable kind.
+    Sort features extracted from the temperature-related data,
+    in the correspoding date and vegetable kind.
     Currently missiing values are interpolated by the mean of several areas in a given date.
 
     Parameters
@@ -81,7 +84,8 @@ def get_target_values(train, target_vegetable):
     ----------
     train : pandas.DataFrame
         Two-dimensional array.
-        Represents explanatory variables including temperature features, axis0 is the number of samples and axis1 is the features.
+        Represents explanatory variables including temperature features,
+        axis0 is the number of samples and axis1 is the features.
 
         train_test = pd.read_csv("./data/mapped_train_test.csv")
         train_test["date"] = pd.to_datetime(train_test["date"], format="%Y-%m-%d")
@@ -116,7 +120,8 @@ def get_target_values(train, target_vegetable):
     return target_values
 
 
-def preprocess_data(target_values, train_size=4000, T=10, batch_size=16, continuous_feature_index=7):
+def preprocess_data(target_values, train_size=4000, T=10,
+                    batch_size=16, continuous_feature_index=7):
     # 1. split data into training, test
     feature_size = target_values.shape[1]
     train = target_values[:train_size, :]
@@ -138,7 +143,7 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16, continu
     train_x = train[:, :-1, :]
     train_y = train[:, 1:, :1]
 
-    # 4. convert into torch.tensor, on DEVICE, DataLoader 
+    # 4. convert into torch.tensor, on DEVICE, DataLoader
     train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
     train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
     test_y = test[:, 0]
@@ -150,7 +155,8 @@ def preprocess_data(target_values, train_size=4000, T=10, batch_size=16, continu
 
 
 class RNN(nn.Module):
-    def __init__(self, input_size, hidden_size=500, output_size=1, dropout_ratio=0.5, is_attention=False):
+    def __init__(self, input_size, hidden_size=500,
+                 output_size=1, dropout_ratio=0.5, is_attention=False):
         super().__init__()
         self.is_attention = is_attention
         self.hidden_size = hidden_size
@@ -190,22 +196,27 @@ class RNN(nn.Module):
 
     def predict(self, train, test, future):
         """
-        LSTM-Attention predicts value for future time steps, following the tail end of the training data.
+        LSTM-Attention predicts value for future time steps,
+        following the tail end of the training data.
 
         Parameters
         ----------
         train : pandas.DataFrame
             Two-dimensional array.
-            Represents explanatory variables for training including temperature features, axis0 is the number of samples and axis1 is the features.
+            Represents explanatory variables for training including temperature features,
+            axis0 is the number of samples and axis1 is the features.
 
-            train_loader, test_y, train, test, ss = utils.preprocess_data(target_values, train_size=training_size,
-                                                                          T=param["T"], batch_size=param["batch_size"])
+            train_loader, test_y, train, test, ss =
+            utils.preprocess_data(target_values, train_size=training_size,
+                                  T=param["T"], batch_size=param["batch_size"])
         test : pandas.DataFrame
             Two-dimensional array.
-            Represents explanatory variables for testing including temperature features, axis0 is the number of samples and axis1 is the features.
+            Represents explanatory variables for testing including temperature features,
+            axis0 is the number of samples and axis1 is the features.
 
-            train_loader, test_y, train, test, ss = utils.preprocess_data(target_values, train_size=training_size,
-                                                                          T=param["T"], batch_size=param["batch_size"])
+            train_loader, test_y, train, test, ss =
+            utils.preprocess_data(target_values, train_size=training_size,
+                                  T=param["T"], batch_size=param["batch_size"])
         future : int
             This specifies how long model should predict.
         """
@@ -231,13 +242,14 @@ class RNN(nn.Module):
 
         # future prediction
         preds = torch.zeros(1, future, 1).to(DEVICE)
-        hs = torch.zeros(1, future, int(self.hidden_size/2)).to(DEVICE) if self.is_attention else None
+        hs = torch.zeros(1, future, int(self.hidden_size/2)).to(DEVICE) \
+            if self.is_attention else None
         self.eval()
 
         for t in range(future):
             pred, (h_t1, c_t1) = self.rnn1(start_x, (h_t1, c_t1))
             pred, (h_t2, c_t2) = self.rnn2(pred, (h_t2, c_t2))
-            
+
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
                 context = get_contexts_by_attention_during_prediction(t, pred, hs, DEVICE)
@@ -283,8 +295,9 @@ def get_contexts_by_attention_during_prediction(t, pred, hs, device):
     return context
 
 
-def pipeline_rnn(train_loader, train, test, test_y, future=375, num_epochs=100, lr=0.005,
-                 weight_decay=1e-3, eps=1e-8, hidden_size=500, dropout_ratio=0.5, is_attention=False):
+def pipeline_rnn(train_loader, train, test, test_y, future=375,
+                 num_epochs=100, lr=0.005, weight_decay=1e-3, eps=1e-8,
+                 hidden_size=500, dropout_ratio=0.5, is_attention=False):
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size=train.shape[2], hidden_size=hidden_size,
                 dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
