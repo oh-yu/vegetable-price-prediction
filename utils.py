@@ -140,6 +140,9 @@ def preprocess_data(target_values, train_size=4000,
 class RNN(nn.Module):
     # pylint: disable=too-many-instance-attributes
     # It seems reasonable in this case, because LSTM-Attention needs all of that.
+    # pylint: disable=too-many-arguments
+    # It seems reasonable in this case, because of the same reason.
+
     def __init__(self, input_size, hidden_size=500,
                  output_size=1, dropout_ratio=0.5, is_attention=False):
         super().__init__()
@@ -287,20 +290,19 @@ def get_contexts_by_attention_during_prediction(t, pred, hs):
     return context
 
 
-def pipeline_rnn(train_loader, train, test, future=375,
-                 num_epochs=100, lr=0.005, weight_decay=1e-3, eps=1e-8,
-                 hidden_size=500, dropout_ratio=0.5, is_attention=False):
+def pipeline_rnn(train_loader, train, test, param, future=375):
     # pylint: disable=too-many-locals
     # It seems reasonable in this case, because pipeline needs all of that.
 
     # Instantiate Model, Optimizer, Criterion
-    model = RNN(input_size=train.shape[2], hidden_size=hidden_size,
-                dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay, eps=eps)
+    model = RNN(input_size=train.shape[2], hidden_size=param["hidden_size"],
+                dropout_ratio=param["dropout_ratio"], is_attention=param["is_attention"]).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=param["learning_rate"],
+                           weight_decay=param["weight_decay"], eps=param["eps"])
     criterion = nn.MSELoss()
 
     # Training & Test Loop
-    for _ in range(num_epochs):
+    for _ in range(param["num_epochs"]):
         model.train()
 
         for _, (batch_x, batch_y) in enumerate(train_loader):
