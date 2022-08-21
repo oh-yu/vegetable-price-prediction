@@ -15,7 +15,8 @@ VEGETABLES = [
     'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
     'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
 ]
-
+continuous_feature_index=7
+CONTINUOUS_FEATURE_INDEX = 7
 
 class RMSPELoss:
     # pylint: disable=too-few-public-methods
@@ -120,8 +121,8 @@ def get_target_values(train, target_vegetable):
     return target_values
 
 
-def preprocess_data(target_values, train_size=4000, T=10,
-                    batch_size=16, continuous_feature_index=7):
+def preprocess_data(target_values, train_size=4000,
+                    T=10, batch_size=16):
     # 1. split data into training, test
     feature_size = target_values.shape[1]
     train = target_values[:train_size, :]
@@ -129,9 +130,9 @@ def preprocess_data(target_values, train_size=4000, T=10,
 
     # 2. standardization
     ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :continuous_feature_index])
-    train[:, :continuous_feature_index] = ss.transform(train[:, :continuous_feature_index])
-    test[:, :continuous_feature_index] = ss.transform(test[:, :continuous_feature_index])
+    ss.fit(train[:, :CONTINUOUS_FEATURE_INDEX])
+    train[:, :CONTINUOUS_FEATURE_INDEX] = ss.transform(train[:, :CONTINUOUS_FEATURE_INDEX])
+    test[:, :CONTINUOUS_FEATURE_INDEX] = ss.transform(test[:, :CONTINUOUS_FEATURE_INDEX])
 
     # 3. reshape training data into shape of (N, T, D)
     if train.shape[0] % T == 0:
@@ -332,8 +333,8 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
 
 
 def plot_prediction(pred, test, ss):
-    test[:, :7] = ss.inverse_transform(test[:, :7])
-    pred[:, :7] = ss.inverse_transform(pred[:, :7])
+    test[:, :CONTINUOUS_FEATURE_INDEX] = ss.inverse_transform(test[:, :CONTINUOUS_FEATURE_INDEX])
+    pred[:, :CONTINUOUS_FEATURE_INDEX] = ss.inverse_transform(pred[:, :CONTINUOUS_FEATURE_INDEX])
 
     plt.title("pred vs test")
     plt.plot(test[:, 0], label="test")
