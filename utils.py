@@ -17,23 +17,6 @@ VEGETABLES = [
 ]
 CONTINUOUS_FEATURE_INDEX = 7
 
-class RMSPELoss:
-    # pylint: disable=too-few-public-methods
-    # It seems reasonable in this case.
-    def __init__(self):
-        pass
-
-    def __call__(self, preds, ys):
-        preds = preds.reshape(-1)
-        ys = ys.reshape(-1)
-        N = len(ys)
-        losses = torch.zeros(N)
-        for i, (pred, y) in enumerate(zip(preds, ys)):
-            losses[i] = ((pred-y) / y)**2
-        loss = torch.sum(losses)
-        loss = 100 * ((loss/N)**0.5)
-        return loss
-
 
 def get_sorted_weather(train, temps):
     """
@@ -155,6 +138,8 @@ def preprocess_data(target_values, train_size=4000,
 
 
 class RNN(nn.Module):
+    # pylint: disable=too-many-instance-attributes
+    # It seems reasonable in this case, because LSTM-Attention needs all of that.
     def __init__(self, input_size, hidden_size=500,
                  output_size=1, dropout_ratio=0.5, is_attention=False):
         super().__init__()
@@ -170,6 +155,13 @@ class RNN(nn.Module):
         self.dropout2 = nn.Dropout(dropout_ratio)
         self.fc2 = nn.Linear(int(hidden_size/4), int(hidden_size/10))
         self.fc3 = nn.Linear(int(hidden_size/10), output_size)
+
+        # these variables should be included in RNN, used for prediction
+        self.out = None
+        self.h_t1 = None
+        self.c_t1 = None
+        self.h_t2 = None
+        self.c_t2 = None
 
     def forward(self, x):
         # x shape: (N, T, D)
@@ -252,7 +244,7 @@ class RNN(nn.Module):
 
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
-                context = get_contexts_by_attention_during_prediction(t, pred, hs, DEVICE)
+                context = get_contexts_by_attention_during_prediction(t, pred, hs)
                 pred = torch.cat((context, pred), dim=2)
 
             pred = self.dropout1(F.relu(self.fc1(pred)))
@@ -284,7 +276,7 @@ def get_contexts_by_attention(hs, device):
 
 
 # TODO: refactor(this function mostly duplicates get_contexts_by_attention())
-def get_contexts_by_attention_during_prediction(t, pred, hs, device):
+def get_contexts_by_attention_during_prediction(t, pred, hs):
     h_t = pred.repeat(1, t+1, 1)
     attention = (h_t*hs[:, :t+1, :]).sum(axis=2)
     attention = F.softmax(attention, dim=1)
@@ -295,9 +287,12 @@ def get_contexts_by_attention_during_prediction(t, pred, hs, device):
     return context
 
 
-def pipeline_rnn(train_loader, train, test, test_y, future=375,
+def pipeline_rnn(train_loader, train, test, future=375,
                  num_epochs=100, lr=0.005, weight_decay=1e-3, eps=1e-8,
                  hidden_size=500, dropout_ratio=0.5, is_attention=False):
+    # pylint: disable=too-many-locals
+    # It seems reasonable in this case, because pipeline needs all of that.
+
     # Instantiate Model, Optimizer, Criterion
     model = RNN(input_size=train.shape[2], hidden_size=hidden_size,
                 dropout_ratio=dropout_ratio, is_attention=is_attention).to(DEVICE)
@@ -326,9 +321,8 @@ def pipeline_rnn(train_loader, train, test, test_y, future=375,
             model.eval()
             pred_y = model.predict(train, test, future)
             pred_y = pred_y.reshape(-1)
-            loss = criterion(pred_y, test_y)
 
-    return pred_y, loss
+    return pred_y
 
 
 def plot_prediction(pred, test, ss):
