@@ -15,7 +15,6 @@ VEGETABLES = [
     'きゅうり', 'トマト', 'ピーマン', 'じゃがいも',
     'なましいたけ', 'セルリー', 'そらまめ', 'ミニトマト'
 ]
-continuous_feature_index=7
 CONTINUOUS_FEATURE_INDEX = 7
 
 class RMSPELoss:
