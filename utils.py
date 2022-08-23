@@ -43,18 +43,12 @@ def get_sorted_weather(train, temps):
         temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
     """
     df = pd.DataFrame()
-    c = 0
     for _, vals in train.iterrows():
         date = vals["date"]
         area = vals["area"]
         temp = temps[(temps.areas == area) & (temps.dates == date)]
         temp = temp.drop(columns=["dates", "areas"])
-        if temp.empty:
-            c += 1
-            temp = pd.DataFrame(temps[temps.date == date].mean()).T
-            # TODO: to be deleted
         df = pd.concat([df, temp], axis=0)
-    print(f"missing: {c}")
     return df
 
 
