@@ -105,10 +105,10 @@ def preprocess_data(target_values, train_size=4000,
     test = target_values[train_size:, :]
 
     # 2. standardization
-    ss = preprocessing.StandardScaler()
-    ss.fit(train[:, :CONTINUOUS_FEATURE_INDEX])
-    train[:, :CONTINUOUS_FEATURE_INDEX] = ss.transform(train[:, :CONTINUOUS_FEATURE_INDEX])
-    test[:, :CONTINUOUS_FEATURE_INDEX] = ss.transform(test[:, :CONTINUOUS_FEATURE_INDEX])
+    scaler = preprocessing.StandardScaler()
+    scaler.fit(train[:, :CONTINUOUS_FEATURE_INDEX])
+    train[:, :CONTINUOUS_FEATURE_INDEX] = scaler.transform(train[:, :CONTINUOUS_FEATURE_INDEX])
+    test[:, :CONTINUOUS_FEATURE_INDEX] = scaler.transform(test[:, :CONTINUOUS_FEATURE_INDEX])
 
     # 3. reshape training data into shape of (N, T, D)
     if train.shape[0] % T == 0:
@@ -129,7 +129,7 @@ def preprocess_data(target_values, train_size=4000,
     train_ds = TensorDataset(train_x, train_y)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
 
-    return train_loader, test_y, train, test, ss
+    return train_loader, test_y, train, test, scaler
 
 
 class RNN(nn.Module):
@@ -326,9 +326,9 @@ def pipeline_rnn(train_loader, train, test, param, future=375):
     return pred_y
 
 
-def plot_prediction(pred, test, ss):
-    test[:, :CONTINUOUS_FEATURE_INDEX] = ss.inverse_transform(test[:, :CONTINUOUS_FEATURE_INDEX])
-    pred[:, :CONTINUOUS_FEATURE_INDEX] = ss.inverse_transform(pred[:, :CONTINUOUS_FEATURE_INDEX])
+def plot_prediction(pred, test, scaler):
+    test[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(test[:, :CONTINUOUS_FEATURE_INDEX])
+    pred[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(pred[:, :CONTINUOUS_FEATURE_INDEX])
 
     plt.title("pred vs test")
     plt.plot(test[:, 0], label="test")
