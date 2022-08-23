@@ -128,6 +128,7 @@ def preprocess_data(target_values, train_size=4000,
 
     # 4. convert into torch.tensor, on DEVICE, DataLoader
     train_x = torch.tensor(train_x, dtype=torch.float32).to(DEVICE)
+    # TODO: undersntad not-callable
     train_y = torch.tensor(train_y, dtype=torch.float32).to(DEVICE)
     test_y = test[:, 0]
     test_y = torch.tensor(test_y, dtype=torch.float32).to(DEVICE)
@@ -250,6 +251,7 @@ class RNN(nn.Module):
 
             if self.is_attention:
                 hs[:, t, :] = pred.squeeze(1)
+                # TODO: understand unsupported-assignment-operation
                 context = get_contexts_by_attention_during_prediction(t, pred, hs)
                 pred = torch.cat((context, pred), dim=2)
 
