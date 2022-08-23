@@ -190,6 +190,9 @@ class RNN(nn.Module):
         return out
 
     def predict(self, train, test, future):
+        # pylint: disable=too-many-locals
+        # It seems reasonable in this case, because LSTM-Attention's prediction needs all of that.
+
         """
         LSTM-Attention predicts value for future time steps,
         following the tail end of the training data.
