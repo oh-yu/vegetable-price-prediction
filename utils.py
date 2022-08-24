@@ -18,21 +18,20 @@ VEGETABLES = [
 CONTINUOUS_FEATURE_INDEX = 7
 
 
-def get_sorted_weather(train, temps):
+def get_sorted_weather(train_test, temps):
     """
     Sort features extracted from the temperature-related data,
     in the correspoding date and vegetable kind.
-    Currently missiing values are interpolated by the mean of several areas in a given date.
 
     Parameters
     ----------
-    train : pandas.DataFrame
+    train_test : pandas.DataFrame
         Two-dimensional array.
-        Represents explanatory variables except for the temperature features and target for train.
-        axis0 is the number of samples, axis1 is the features.
+        Represents explanatory variables and the target except for the temperature features.
+        axis0 is the number of samples, axis1 is the features and the target.
 
-        train = pd.read_csv("./data/train.csv")
-        train["date"] = pd.to_datetime(train["date"], format="%Y%m%d")
+        train_test = pd.read_csv("./data/mapped_train_test.csv")
+        train_test["date"] = pd.to_datetime(train_test["date"], format="%Y-%m-%d")
 
     temps : pandas.DataFrame
         Two-dimensional array.
@@ -40,10 +39,10 @@ def get_sorted_weather(train, temps):
         axis0 is the number of samples and axis1 is the features.
 
         temps = pd.read_csv("./data/mapped_adjusted_weather.csv")
-        temps["date"] = pd.to_datetime(temps["date"], format="%Y%m%d")
+        temps["date"] = pd.to_datetime(temps["date"], format="%Y-%m-%d")
     """
     df = pd.DataFrame()
-    for _, vals in train.iterrows():
+    for _, vals in train_test.iterrows():
         date = vals["date"]
         area = vals["area"]
         temp = temps[(temps.areas == area) & (temps.dates == date)]
@@ -199,7 +198,7 @@ class RNN(nn.Module):
             Represents explanatory variables for training including temperature features,
             axis0 is the number of samples and axis1 is the features.
 
-            train_loader, test_y, train, test, ss =
+            train_loader, test_y, train, test, ss = \
             utils.preprocess_data(target_values, train_size=training_size,
                                   T=param["T"], batch_size=param["batch_size"])
         test : pandas.DataFrame
@@ -207,7 +206,7 @@ class RNN(nn.Module):
             Represents explanatory variables for testing including temperature features,
             axis0 is the number of samples and axis1 is the features.
 
-            train_loader, test_y, train, test, ss =
+            train_loader, test_y, train, test, ss = \
             utils.preprocess_data(target_values, train_size=training_size,
                                   T=param["T"], batch_size=param["batch_size"])
         future : int
