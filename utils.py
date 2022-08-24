@@ -327,8 +327,10 @@ def pipeline_rnn(train_loader, train, test, param, future=375):
 
 
 def plot_prediction(pred, test, scaler):
-    test[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(test[:, :CONTINUOUS_FEATURE_INDEX])
-    pred[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(pred[:, :CONTINUOUS_FEATURE_INDEX])
+    test[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(
+        test[:, :CONTINUOUS_FEATURE_INDEX])
+    pred[:, :CONTINUOUS_FEATURE_INDEX] = scaler.inverse_transform(
+        pred[:, :CONTINUOUS_FEATURE_INDEX])
 
     plt.title("pred vs test")
     plt.plot(test[:, 0], label="test")
