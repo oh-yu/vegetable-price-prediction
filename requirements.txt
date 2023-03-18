@@ -1,0 +1,6 @@
+pandas==1.2.4
+numpy==1.19.5
+torch==1.7.1
+matplotlib==3.2.2
+scikit-learn==1.0.1
+selenium==3.141.0
